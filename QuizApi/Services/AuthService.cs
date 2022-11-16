@@ -8,6 +8,7 @@ using Microsoft.IdentityModel.Tokens;
 using QuizApi.DbContexts;
 using QuizApi.DTOs;
 using QuizApi.Enums;
+using QuizApi.Extensions;
 using QuizApi.Models;
 
 namespace QuizApi.Services

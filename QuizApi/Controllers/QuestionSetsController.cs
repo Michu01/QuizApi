@@ -11,6 +11,7 @@ using QuizApi.DTOs;
 using QuizApi.Enums;
 using QuizApi.Extensions;
 using QuizApi.Models;
+using QuizApi.Services;
 
 namespace QuizApi.Controllers
 {
@@ -28,6 +29,11 @@ namespace QuizApi.Controllers
             this.logger = logger;
         }
 
+        private async Task<QuestionSetDTO?> Find(int id)
+        {
+            return await dbContext.QuestionSets.FindAsync(id);
+        }
+
         [HttpGet]
         public IActionResult Get(
             int pageId = 0, 
@@ -37,19 +43,7 @@ namespace QuizApi.Controllers
         {
             limit = Math.Min(limit, 100);
 
-            IQueryable<QuestionSetDTO> questionSets = dbContext.QuestionSets;
-
-            if (User.Identity is null)
-            {
-                questionSets = questionSets.Where(qs => qs.Access == QuestionSetAccess.Public);
-            }
-            else if (User.GetRole() != UserRole.Admin)
-            {
-                int userId = User.GetId();
-
-                questionSets = questionSets.Where(qs => qs.Access != QuestionSetAccess.Private || qs.CreatorId == userId);
-                questionSets = questionSets.Where(qs => qs.Access != QuestionSetAccess.Friends || qs.Creator.IsFriend(userId));
-            }
+            IQueryable<QuestionSetDTO> questionSets = dbContext.QuestionSets.Where(qs => User.CanAccess(qs));
 
             if (!string.IsNullOrEmpty(namePattern))
             {
@@ -69,49 +63,17 @@ namespace QuizApi.Controllers
         [HttpGet("{id:int}")]
         public async Task<IActionResult> Get(int id)
         {
-            if (await Find(id) is not QuestionSetDTO questionSet)
+            if (await Find(id) is not QuestionSetDTO questionSetDTO)
             {
                 return NotFound();
             }
 
-            if (questionSet.Access == QuestionSetAccess.Public)
+            if (User.CanAccess(questionSetDTO))
             {
-                return Ok(questionSet);
+                return Ok(questionSetDTO);
             }
 
-            if (User.Identity is null)
-            {
-                return Forbid();
-            }
-
-            if (User.GetRole() == UserRole.Admin)
-            {
-                return Ok(questionSet);
-            }
-
-            int userId = User.GetId();
-
-            if (questionSet.Access == QuestionSetAccess.Private)
-            {
-                if (userId == questionSet.CreatorId)
-                {
-                    return Ok(questionSet);
-                }
-
-                return Forbid();
-            }
-
-            if (questionSet.Access == QuestionSetAccess.Friends)
-            {
-                if (questionSet.Creator.IsFriend(userId))
-                {
-                    return Ok(questionSet);
-                }
-
-                return Forbid();
-            }
-
-            throw new NotImplementedException();
+            return Forbid();
         }
 
         [HttpPost]
@@ -122,7 +84,7 @@ namespace QuizApi.Controllers
             {
                 int userId = User.GetId();
 
-                QuestionSetDTO dto = new()
+                QuestionSetDTO questionSetDTO = new()
                 {
                     Name = questionSet.Name,
                     Access = questionSet.Access,
@@ -130,10 +92,10 @@ namespace QuizApi.Controllers
                     CreatorId = userId
                 };
 
-                await dbContext.QuestionSets.AddAsync(dto);
+                await dbContext.QuestionSets.AddAsync(questionSetDTO);
                 await dbContext.SaveChangesAsync();
 
-                return Ok(dto);
+                return Ok(questionSetDTO);
             }
             catch (DbUpdateException ex)
             {
@@ -153,48 +115,43 @@ namespace QuizApi.Controllers
         [Authorize]
         public async Task<IActionResult> Patch(int id, QuestionSet questionSet)
         {
-            if (await Find(id) is not QuestionSetDTO dto)
+            if (await Find(id) is not QuestionSetDTO questionSetDTO)
             {
                 return NotFound();
             }
 
-            if (User.GetRole() != UserRole.Admin && User.GetId() != dto.CreatorId)
+            if (!User.CanModify(questionSetDTO))
             {
                 return Forbid();
             }
 
-            dto.Name = questionSet.Name;
-            dto.Access = questionSet.Access;
-            dto.CategoryId = questionSet.CategoryId;
+            questionSetDTO.Name = questionSet.Name;
+            questionSetDTO.Access = questionSet.Access;
+            questionSetDTO.CategoryId = questionSet.CategoryId;
 
             await dbContext.SaveChangesAsync();
 
-            return Ok(dto);
+            return Ok(questionSetDTO);
         }
 
         [HttpDelete("{id:int}")]
         [Authorize]
         public async Task<IActionResult> Delete(int id)
         {
-            if (await Find(id) is not QuestionSetDTO dto)
+            if (await Find(id) is not QuestionSetDTO questionSetDTO)
             {
                 return NotFound();
             }
 
-            if (User.GetRole() != UserRole.Admin && User.GetId() != dto.CreatorId)
+            if (!User.CanModify(questionSetDTO))
             {
                 return Forbid();
             }
 
-            dbContext.Remove(dto);
+            dbContext.Remove(questionSetDTO);
             await dbContext.SaveChangesAsync();
 
             return Ok();
-        }
-
-        private async Task<QuestionSetDTO?> Find(int id)
-        {
-            return await dbContext.QuestionSets.FindAsync(id);
         }
     }
 }

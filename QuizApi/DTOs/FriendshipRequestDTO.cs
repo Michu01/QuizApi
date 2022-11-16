@@ -5,22 +5,22 @@ using System.Text.Json.Serialization;
 
 namespace QuizApi.DTOs
 {
-    public class FriendshipDTO
+    public class FriendshipRequestDTO
     {
-        [ForeignKey(nameof(MeId))]
-        public int MeId { get; set; }
+        [ForeignKey(nameof(SenderId))]
+        public int SenderId { get; set; }
 
         [Required]
         [NotNull]
         [JsonIgnore]
-        public UserDTO? Me { get; set; }
+        public UserDTO? Sender { get; set; }
 
-        [ForeignKey(nameof(TheyId))]
-        public int TheyId { get; set; }
+        [ForeignKey(nameof(ReceiverId))]
+        public int ReceiverId { get; set; }
 
         [Required]
         [NotNull]
         [JsonIgnore]
-        public UserDTO? They { get; set; }
+        public UserDTO? Receiver { get; set; }
     }
 }

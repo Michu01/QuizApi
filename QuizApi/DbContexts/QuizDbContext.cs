@@ -16,6 +16,8 @@ namespace QuizApi.DbContexts
 
         public DbSet<FriendshipDTO> Friendships { get; set; }
 
+        public DbSet<FriendshipRequestDTO> FriendshipRequests { get; set; }
+
         public QuizDbContext(DbContextOptions<QuizDbContext> options) : base(options) { }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -26,6 +28,8 @@ namespace QuizApi.DbContexts
                 .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<FriendshipDTO>().HasKey(f => new { f.MeId, f.TheyId });
+
+            modelBuilder.Entity<FriendshipRequestDTO>().HasKey(f => new { f.SenderId, f.ReceiverId });
 
             base.OnModelCreating(modelBuilder);
         }

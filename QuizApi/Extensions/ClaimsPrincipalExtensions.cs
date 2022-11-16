@@ -2,7 +2,9 @@
 
 using Microsoft.AspNetCore.Identity;
 
+using QuizApi.DTOs;
 using QuizApi.Enums;
+using QuizApi.Models;
 
 namespace QuizApi.Extensions
 {
@@ -16,6 +18,39 @@ namespace QuizApi.Extensions
         public static UserRole GetRole(this ClaimsPrincipal claimsPrincipal)
         {
             return Enum.Parse<UserRole>(claimsPrincipal.FindFirstValue(ClaimTypes.Role));
+        }
+
+        public static bool CanAccess(this ClaimsPrincipal claimsPrincipal, QuestionSetDTO questionSet)
+        {
+            if (questionSet.Access == QuestionSetAccess.Public)
+            {
+                return true;
+            }
+
+            if (claimsPrincipal.Identity is null)
+            {
+                return false;
+            }
+
+            if (claimsPrincipal.GetRole() == UserRole.Admin)
+            {
+                return true;
+            }
+
+            int userId = claimsPrincipal.GetId();
+
+            return questionSet.Access switch
+            {
+                QuestionSetAccess.Private => userId == questionSet.CreatorId,
+                QuestionSetAccess.Friends => questionSet.Creator.IsFriend(userId),
+                _ => throw new NotImplementedException()
+            };
+        }
+
+        public static bool CanModify(this ClaimsPrincipal claimsPrincipal, QuestionSetDTO questionSet)
+        {
+            return claimsPrincipal.GetRole() == UserRole.Admin || 
+                claimsPrincipal.GetId() == questionSet.CreatorId;
         }
     }
 }

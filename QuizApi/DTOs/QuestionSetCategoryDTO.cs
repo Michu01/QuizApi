@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json.Serialization;
 
 using Microsoft.EntityFrameworkCore;
 
@@ -17,6 +18,7 @@ namespace QuizApi.DTOs
         public string? Name { get; set; }
 
         [NotNull]
+        [JsonIgnore]
         public IEnumerable<QuestionSetDTO>? QuestionSets { get; set; }
     }
 }

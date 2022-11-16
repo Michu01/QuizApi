@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json.Serialization;
 
 using Microsoft.EntityFrameworkCore;
 
@@ -21,6 +22,7 @@ namespace QuizApi.DTOs
         [Required]
         [StringLength(84, MinimumLength = 84)]
         [NotNull]
+        [JsonIgnore]
         public string? Password { get; set; }
 
         public UserRole Role { get; set; }
@@ -28,9 +30,11 @@ namespace QuizApi.DTOs
         public DateTime JoinDate { get; set; }
 
         [NotNull]
+        [JsonIgnore]
         public virtual ICollection<FriendshipDTO>? Friendships { get; set; }
 
         [NotNull]
+        [JsonIgnore]
         public virtual ICollection<QuestionSetDTO>? QuestionSets { get; set; }
 
         public bool IsFriend(int id)

@@ -1,4 +1,6 @@
-﻿using QuizApi.DTOs;
+﻿using System.Security.Claims;
+
+using QuizApi.DTOs;
 using QuizApi.Models;
 
 namespace QuizApi.Services

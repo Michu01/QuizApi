@@ -1,18 +1,13 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using QuizApi.Enums;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations;
 using System.Diagnostics.CodeAnalysis;
-using System.Text.Json.Serialization;
 
-using QuizApi.Enums;
-
-namespace QuizApi.DTOs
+namespace QuizApi.Models
 {
-    public class QuestionDTO
+    public class Question
     {
-        [Key]
-        public int Id { get; set; }
-
-        [Required] 
+        [Required]
         [StringLength(256)]
         [NotNull]
         public string? Contents { get; set; }
@@ -37,15 +32,7 @@ namespace QuizApi.DTOs
         [NotNull]
         public string? AnswerD { get; set; }
 
-        public QuestionAnswer CorrectAnswer { get; set; }
-
-
-        [ForeignKey(nameof(QuestionSetId))]
-        public int QuestionSetId { get; set; }
-
         [Required]
-        [NotNull]
-        [JsonIgnore]
-        public virtual QuestionSetDTO? QuestionSet { get; set; }
+        public QuestionAnswer CorrectAnswer { get; set; }
     }
 }
