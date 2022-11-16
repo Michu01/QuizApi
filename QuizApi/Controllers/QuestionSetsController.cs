@@ -35,6 +35,7 @@ namespace QuizApi.Controllers
         }
 
         [HttpGet]
+        [AllowAnonymous]
         public IActionResult Get(
             int pageId = 0, 
             int limit = 10, 
@@ -43,7 +44,9 @@ namespace QuizApi.Controllers
         {
             limit = Math.Min(limit, 100);
 
-            IQueryable<QuestionSetDTO> questionSets = dbContext.QuestionSets.Where(qs => User.CanAccess(qs));
+            IEnumerable<QuestionSetDTO> questionSets = dbContext.QuestionSets
+                .AsEnumerable()
+                .Where(qs => User.CanAccess(qs));
 
             if (!string.IsNullOrEmpty(namePattern))
             {
@@ -61,6 +64,7 @@ namespace QuizApi.Controllers
         }
 
         [HttpGet("{id:int}")]
+        [AllowAnonymous]
         public async Task<IActionResult> Get(int id)
         {
             if (await Find(id) is not QuestionSetDTO questionSetDTO)

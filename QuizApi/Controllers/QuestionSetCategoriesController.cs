@@ -19,9 +19,22 @@ namespace QuizApi.Controllers
         }
 
         [HttpGet]
+        [AllowAnonymous]
         public IActionResult Get()
         {
             return Ok(dbContext.QuestionSetCategories);
+        }
+
+        [HttpGet("{id:int}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> Get(int id)
+        {
+            if (await dbContext.QuestionSetCategories.FindAsync(id) is not QuestionSetCategoryDTO questionSetCategory)
+            {
+                return NotFound();
+            }
+
+            return Ok(questionSetCategory);
         }
 
         [HttpPost]

@@ -36,6 +36,7 @@ namespace QuizApi.Controllers
         }
 
         [HttpGet]
+        [AllowAnonymous]
         public async Task<IActionResult> Get(int questionSetId)
         {
             if (await FindQuestionSet(questionSetId) is not QuestionSetDTO questionSetDTO)

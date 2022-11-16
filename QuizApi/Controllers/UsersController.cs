@@ -20,6 +20,7 @@ namespace QuizApi.Controllers
         }
 
         [HttpGet]
+        [AllowAnonymous]
         public IActionResult Get(
            int pageId = 0,
            int limit = 10,
@@ -35,6 +36,18 @@ namespace QuizApi.Controllers
             users = users.Skip(pageId * limit).Take(limit);
 
             return Ok(users);
+        }
+
+        [HttpGet("{id:int}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> Get(int id)
+        {
+            if (await dbContext.Users.FindAsync(id) is not UserDTO user)
+            {
+                return NotFound();
+            }
+
+            return Ok(user);
         }
 
         [HttpGet("Friends")]
