@@ -1,4 +1,5 @@
-﻿using System.Data.Common;
+﻿using System.ComponentModel.DataAnnotations;
+using System.Data.Common;
 using System.Security.Claims;
 
 using Microsoft.AspNetCore.Authorization;
@@ -82,7 +83,7 @@ namespace QuizApi.Controllers
 
         [HttpPost]
         [Authorize]
-        public async Task<IActionResult> Post(QuestionSet questionSet)
+        public async Task<IActionResult> Post([Required] QuestionSet questionSet)
         {
             try
             {
@@ -99,7 +100,7 @@ namespace QuizApi.Controllers
                 await dbContext.QuestionSets.AddAsync(questionSetDTO);
                 await dbContext.SaveChangesAsync();
 
-                return Ok(questionSetDTO);
+                return CreatedAtAction(nameof(Post), questionSetDTO);
             }
             catch (DbUpdateException ex)
             {
@@ -117,7 +118,7 @@ namespace QuizApi.Controllers
 
         [HttpPatch("{id:int}")]
         [Authorize]
-        public async Task<IActionResult> Patch(int id, QuestionSet questionSet)
+        public async Task<IActionResult> Patch(int id, [Required] QuestionSet questionSet)
         {
             if (await Find(id) is not QuestionSetDTO questionSetDTO)
             {

@@ -1,5 +1,10 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using System.ComponentModel.DataAnnotations;
+
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+
+using NuGet.Protocol.Plugins;
 
 using QuizApi.DbContexts;
 using QuizApi.DTOs;
@@ -26,14 +31,38 @@ namespace QuizApi.Controllers
             int id = User.GetId();
 
             IQueryable<FriendshipRequestDTO> requests = dbContext.FriendshipRequests
+                .Where(r => r.ReceiverId == id || r.SenderId == id);
+
+            return Ok(requests);
+        }
+
+        [HttpGet("Received")]
+        [Authorize]
+        public IActionResult GetReceived()
+        {
+            int id = User.GetId();
+
+            IQueryable<FriendshipRequestDTO> requests = dbContext.FriendshipRequests
                 .Where(r => r.ReceiverId == id);
+
+            return Ok(requests);
+        }
+
+        [HttpGet("Sent")]
+        [Authorize]
+        public IActionResult GetSent()
+        {
+            int id = User.GetId();
+
+            IQueryable<FriendshipRequestDTO> requests = dbContext.FriendshipRequests
+                .Where(r => r.SenderId == id);
 
             return Ok(requests);
         }
 
         [HttpPost("Send")]
         [Authorize]
-        public async Task<IActionResult> Send(int userId)
+        public async Task<IActionResult> Send([Required] int userId)
         {
             int id = User.GetId();
 
@@ -51,55 +80,49 @@ namespace QuizApi.Controllers
 
             FriendshipRequestDTO friendshipRequest = new()
             {
-                SenderId = User.GetId(),
-                ReceiverId = id
+                SenderId = id,
+                ReceiverId = userId
             };
 
             dbContext.FriendshipRequests.Add(friendshipRequest);
             await dbContext.SaveChangesAsync();
 
-            return Ok();
+            return CreatedAtAction(nameof(Send), friendshipRequest);
         }
 
-        [HttpPost("{id:int}/Accept")]
+        [HttpPost("{senderId:int}/Accept")]
         [Authorize]
-        public async Task<IActionResult> Accept(int id)
+        public async Task<IActionResult> Accept(int senderId)
         {
-            if (await dbContext.FriendshipRequests.FindAsync(id) is not FriendshipRequestDTO friendshipRequest)
+            int myId = User.GetId();
+
+            if (await dbContext.FriendshipRequests.FindAsync(senderId, myId) is not FriendshipRequestDTO friendshipRequest)
             {
                 return NotFound();
             }
 
-            if (friendshipRequest.ReceiverId != User.GetId())
-            {
-                return Forbid();
-            }
-
             FriendshipDTO friendship = new()
             {
-                MeId = User.GetId(),
-                TheyId = id
+                MeId = myId,
+                TheyId = senderId
             };
 
             dbContext.FriendshipRequests.Remove(friendshipRequest);
             dbContext.Friendships.Add(friendship);
             await dbContext.SaveChangesAsync();
 
-            return Ok(friendship);
+            return CreatedAtAction(nameof(Accept), friendship);
         }
 
-        [HttpPost("{id:int}/Decline")]
+        [HttpDelete("{senderId:int}/Decline")]
         [Authorize]
-        public async Task<IActionResult> Decline(int id)
+        public async Task<IActionResult> Decline(int senderId)
         {
-            if (await dbContext.FriendshipRequests.FindAsync(id) is not FriendshipRequestDTO friendshipRequest)
+            int myId = User.GetId();
+
+            if (await dbContext.FriendshipRequests.FindAsync(senderId, myId) is not FriendshipRequestDTO friendshipRequest)
             {
                 return NotFound();
-            }
-
-            if (friendshipRequest.ReceiverId != User.GetId())
-            {
-                return Forbid();
             }
 
             dbContext.FriendshipRequests.Remove(friendshipRequest);

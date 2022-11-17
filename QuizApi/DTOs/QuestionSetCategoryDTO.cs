@@ -19,6 +19,6 @@ namespace QuizApi.DTOs
 
         [NotNull]
         [JsonIgnore]
-        public IEnumerable<QuestionSetDTO>? QuestionSets { get; set; }
+        public virtual IEnumerable<QuestionSetDTO>? QuestionSets { get; set; }
     }
 }

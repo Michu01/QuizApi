@@ -3,6 +3,8 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 
+using Microsoft.EntityFrameworkCore;
+
 using QuizApi.Enums;
 
 namespace QuizApi.DTOs
@@ -39,11 +41,8 @@ namespace QuizApi.DTOs
 
         public QuestionAnswer CorrectAnswer { get; set; }
 
-
-        [ForeignKey(nameof(QuestionSetId))]
         public int QuestionSetId { get; set; }
 
-        [Required]
         [NotNull]
         [JsonIgnore]
         public virtual QuestionSetDTO? QuestionSet { get; set; }

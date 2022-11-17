@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using System.ComponentModel.DataAnnotations;
+
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 using QuizApi.DbContexts;
@@ -39,7 +41,7 @@ namespace QuizApi.Controllers
 
         [HttpPost]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Post(QuestionSetCategory questionSetCategory)
+        public async Task<IActionResult> Post([Required] QuestionSetCategory questionSetCategory)
         {
             QuestionSetCategoryDTO dto = new()
             {
@@ -49,7 +51,7 @@ namespace QuizApi.Controllers
             dbContext.QuestionSetCategories.Add(dto);
             await dbContext.SaveChangesAsync();
 
-            return Ok(dto);
+            return CreatedAtAction(nameof(Post), dto);
         }
 
         [HttpDelete("{id:int}")]

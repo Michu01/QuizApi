@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using System.ComponentModel.DataAnnotations;
+
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -37,7 +39,7 @@ namespace QuizApi.Controllers
 
         [HttpGet]
         [AllowAnonymous]
-        public async Task<IActionResult> Get(int questionSetId)
+        public async Task<IActionResult> Get([Required] int questionSetId)
         {
             if (await FindQuestionSet(questionSetId) is not QuestionSetDTO questionSetDTO)
             {
@@ -56,7 +58,7 @@ namespace QuizApi.Controllers
 
         [HttpPost]
         [Authorize]
-        public async Task<IActionResult> Post(int questionSetId, Question question)
+        public async Task<IActionResult> Post([Required] int questionSetId, [Required] Question question)
         {
             if (await FindQuestionSet(questionSetId) is not QuestionSetDTO questionSetDTO)
             {
@@ -82,12 +84,12 @@ namespace QuizApi.Controllers
             dbContext.Questions.Add(questionDTO);
             await dbContext.SaveChangesAsync();
 
-            return Ok(questionDTO);
+            return CreatedAtAction(nameof(Post), questionDTO);
         }
 
         [HttpPatch("{id:int}")]
         [Authorize]
-        public async Task<IActionResult> Patch(int id, Question question)
+        public async Task<IActionResult> Patch(int id, [Required] Question question)
         {
             if (await Find(id) is not QuestionDTO questionDTO)
             {

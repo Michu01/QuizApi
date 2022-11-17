@@ -12,7 +12,7 @@ using QuizApi.DbContexts;
 namespace QuizApi.Migrations
 {
     [DbContext(typeof(QuizDbContext))]
-    [Migration("20221114233953_Init")]
+    [Migration("20221117014302_Init")]
     partial class Init
     {
         /// <inheritdoc />
@@ -38,6 +38,21 @@ namespace QuizApi.Migrations
                     b.HasIndex("TheyId");
 
                     b.ToTable("Friendships");
+                });
+
+            modelBuilder.Entity("QuizApi.DTOs.FriendshipRequestDTO", b =>
+                {
+                    b.Property<int>("SenderId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ReceiverId")
+                        .HasColumnType("int");
+
+                    b.HasKey("SenderId", "ReceiverId");
+
+                    b.HasIndex("ReceiverId");
+
+                    b.ToTable("FriendshipRequests");
                 });
 
             modelBuilder.Entity("QuizApi.DTOs.QuestionDTO", b =>
@@ -138,6 +153,9 @@ namespace QuizApi.Migrations
 
                     b.HasIndex("CreatorId");
 
+                    b.HasIndex("Name")
+                        .IsUnique();
+
                     b.ToTable("QuestionSets");
                 });
 
@@ -159,21 +177,16 @@ namespace QuizApi.Migrations
 
                     b.Property<string>("Password")
                         .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)");
+                        .HasMaxLength(84)
+                        .HasColumnType("nvarchar(84)");
 
                     b.Property<int>("Role")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("UserDTOId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
 
                     b.HasIndex("Name")
                         .IsUnique();
-
-                    b.HasIndex("UserDTOId");
 
                     b.ToTable("Users");
                 });
@@ -183,7 +196,7 @@ namespace QuizApi.Migrations
                     b.HasOne("QuizApi.DTOs.UserDTO", "Me")
                         .WithMany("Friendships")
                         .HasForeignKey("MeId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.HasOne("QuizApi.DTOs.UserDTO", "They")
@@ -195,6 +208,25 @@ namespace QuizApi.Migrations
                     b.Navigation("Me");
 
                     b.Navigation("They");
+                });
+
+            modelBuilder.Entity("QuizApi.DTOs.FriendshipRequestDTO", b =>
+                {
+                    b.HasOne("QuizApi.DTOs.UserDTO", "Receiver")
+                        .WithMany()
+                        .HasForeignKey("ReceiverId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("QuizApi.DTOs.UserDTO", "Sender")
+                        .WithMany("FriendshipRequests")
+                        .HasForeignKey("SenderId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Receiver");
+
+                    b.Navigation("Sender");
                 });
 
             modelBuilder.Entity("QuizApi.DTOs.QuestionDTO", b =>
@@ -227,13 +259,6 @@ namespace QuizApi.Migrations
                     b.Navigation("Creator");
                 });
 
-            modelBuilder.Entity("QuizApi.DTOs.UserDTO", b =>
-                {
-                    b.HasOne("QuizApi.DTOs.UserDTO", null)
-                        .WithMany("Friends")
-                        .HasForeignKey("UserDTOId");
-                });
-
             modelBuilder.Entity("QuizApi.DTOs.QuestionSetCategoryDTO", b =>
                 {
                     b.Navigation("QuestionSets");
@@ -246,7 +271,7 @@ namespace QuizApi.Migrations
 
             modelBuilder.Entity("QuizApi.DTOs.UserDTO", b =>
                 {
-                    b.Navigation("Friends");
+                    b.Navigation("FriendshipRequests");
 
                     b.Navigation("Friendships");
 

@@ -25,7 +25,14 @@ namespace QuizApi.DbContexts
             modelBuilder.Entity<UserDTO>()
                 .HasMany(u => u.Friendships)
                 .WithOne(f => f.Me)
-                .OnDelete(DeleteBehavior.Restrict);
+                .HasForeignKey(f => f.MeId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<UserDTO>()
+                .HasMany(u => u.FriendshipRequests)
+                .WithOne(f => f.Sender)
+                .HasForeignKey(f => f.SenderId)
+                .OnDelete(DeleteBehavior.NoAction);
 
             modelBuilder.Entity<FriendshipDTO>().HasKey(f => new { f.MeId, f.TheyId });
 

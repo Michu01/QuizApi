@@ -31,17 +31,34 @@ namespace QuizApi.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     Name = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
-                    Password = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
+                    Password = table.Column<string>(type: "nvarchar(84)", maxLength: 84, nullable: false),
                     Role = table.Column<int>(type: "int", nullable: false),
-                    JoinDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    UserDTOId = table.Column<int>(type: "int", nullable: true)
+                    JoinDate = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Users", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "FriendshipRequests",
+                columns: table => new
+                {
+                    SenderId = table.Column<int>(type: "int", nullable: false),
+                    ReceiverId = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_FriendshipRequests", x => new { x.SenderId, x.ReceiverId });
                     table.ForeignKey(
-                        name: "FK_Users_Users_UserDTOId",
-                        column: x => x.UserDTOId,
+                        name: "FK_FriendshipRequests_Users_ReceiverId",
+                        column: x => x.ReceiverId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_FriendshipRequests_Users_SenderId",
+                        column: x => x.SenderId,
                         principalTable: "Users",
                         principalColumn: "Id");
                 });
@@ -60,8 +77,7 @@ namespace QuizApi.Migrations
                         name: "FK_Friendships_Users_MeId",
                         column: x => x.MeId,
                         principalTable: "Users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
+                        principalColumn: "Id");
                     table.ForeignKey(
                         name: "FK_Friendships_Users_TheyId",
                         column: x => x.TheyId,
@@ -125,6 +141,11 @@ namespace QuizApi.Migrations
                 });
 
             migrationBuilder.CreateIndex(
+                name: "IX_FriendshipRequests_ReceiverId",
+                table: "FriendshipRequests",
+                column: "ReceiverId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Friendships_TheyId",
                 table: "Friendships",
                 column: "TheyId");
@@ -151,20 +172,24 @@ namespace QuizApi.Migrations
                 column: "CreatorId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Users_Name",
-                table: "Users",
+                name: "IX_QuestionSets_Name",
+                table: "QuestionSets",
                 column: "Name",
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_Users_UserDTOId",
+                name: "IX_Users_Name",
                 table: "Users",
-                column: "UserDTOId");
+                column: "Name",
+                unique: true);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropTable(
+                name: "FriendshipRequests");
+
             migrationBuilder.DropTable(
                 name: "Friendships");
 

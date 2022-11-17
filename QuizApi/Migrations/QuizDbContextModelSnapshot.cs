@@ -37,6 +37,21 @@ namespace QuizApi.Migrations
                     b.ToTable("Friendships");
                 });
 
+            modelBuilder.Entity("QuizApi.DTOs.FriendshipRequestDTO", b =>
+                {
+                    b.Property<int>("SenderId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ReceiverId")
+                        .HasColumnType("int");
+
+                    b.HasKey("SenderId", "ReceiverId");
+
+                    b.HasIndex("ReceiverId");
+
+                    b.ToTable("FriendshipRequests");
+                });
+
             modelBuilder.Entity("QuizApi.DTOs.QuestionDTO", b =>
                 {
                     b.Property<int>("Id")
@@ -135,6 +150,9 @@ namespace QuizApi.Migrations
 
                     b.HasIndex("CreatorId");
 
+                    b.HasIndex("Name")
+                        .IsUnique();
+
                     b.ToTable("QuestionSets");
                 });
 
@@ -175,7 +193,7 @@ namespace QuizApi.Migrations
                     b.HasOne("QuizApi.DTOs.UserDTO", "Me")
                         .WithMany("Friendships")
                         .HasForeignKey("MeId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.HasOne("QuizApi.DTOs.UserDTO", "They")
@@ -187,6 +205,25 @@ namespace QuizApi.Migrations
                     b.Navigation("Me");
 
                     b.Navigation("They");
+                });
+
+            modelBuilder.Entity("QuizApi.DTOs.FriendshipRequestDTO", b =>
+                {
+                    b.HasOne("QuizApi.DTOs.UserDTO", "Receiver")
+                        .WithMany()
+                        .HasForeignKey("ReceiverId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("QuizApi.DTOs.UserDTO", "Sender")
+                        .WithMany("FriendshipRequests")
+                        .HasForeignKey("SenderId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Receiver");
+
+                    b.Navigation("Sender");
                 });
 
             modelBuilder.Entity("QuizApi.DTOs.QuestionDTO", b =>
@@ -231,6 +268,8 @@ namespace QuizApi.Migrations
 
             modelBuilder.Entity("QuizApi.DTOs.UserDTO", b =>
                 {
+                    b.Navigation("FriendshipRequests");
+
                     b.Navigation("Friendships");
 
                     b.Navigation("QuestionSets");

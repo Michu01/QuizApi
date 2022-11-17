@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using System.ComponentModel.DataAnnotations;
+
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 using QuizApi.DTOs;
@@ -20,13 +22,13 @@ namespace QuizApi.Controllers
 
         [AllowAnonymous]
         [HttpPost("SignIn")]
-        public async Task<IActionResult> SignIn([FromBody] UserAuthData authData)
+        public async Task<IActionResult> SignIn([FromBody][Required] UserAuthData authData)
         {
             try
             {
                 (UserDTO user, string token) = await authService.SignIn(authData);
 
-                return Ok(new { user, token });
+                return CreatedAtAction(nameof(SignIn), new { user, token });
             }
             catch (Exception ex)
             {
@@ -36,13 +38,13 @@ namespace QuizApi.Controllers
 
         [AllowAnonymous]
         [HttpPost("SignUp")]
-        public async Task<IActionResult> SignUp([FromBody] UserAuthData authData)
+        public async Task<IActionResult> SignUp([FromBody][Required] UserAuthData authData)
         {
             try
             {
                 (UserDTO user, string token) = await authService.SignUp(authData);
 
-                return Ok(new { user, token });
+                return CreatedAtAction(nameof(SignUp), new { user, token });
             }
             catch (Exception ex)
             {
