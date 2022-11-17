@@ -1,14 +1,13 @@
-﻿using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.VisualBasic;
 
 using QuizApi.Enums;
 using QuizApi.JsonConverters;
+using QuizApi.Models;
 
 namespace QuizApi.DTOs
 {
@@ -43,9 +42,23 @@ namespace QuizApi.DTOs
         [JsonIgnore]
         public virtual ICollection<FriendshipRequestDTO> FriendshipRequests { get; set; } = new List<FriendshipRequestDTO>();
 
-        public bool IsFriend(int id)
-        {
-            return Friendships.SingleOrDefault(f => f.TheyId == id) is not null;
-        }
+        [JsonIgnore]
+        [NotMapped]
+        public IEnumerable<User> Friends => Friendships
+            .Select(f => new User(f.MeId == Id ? f.TheyId : f.MeId));
+
+        [JsonIgnore]
+        [NotMapped]
+        public IEnumerable<User> ReceivedFriendshipRequests => FriendshipRequests
+            .Where(f => f.ReceiverId == Id)
+            .Select(f => new User(f.SenderId));
+
+        [JsonIgnore]
+        [NotMapped]
+        public IEnumerable<User> SentFriendshipRequests => FriendshipRequests
+            .Where(f => f.SenderId == Id)
+            .Select(f => new User(f.ReceiverId));
+
+        public bool IsFriend(int userId) => Friends.Any(user => user.Id == userId);
     }
 }

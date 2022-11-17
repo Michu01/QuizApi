@@ -1,7 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
-
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 using QuizApi.DbContexts;
@@ -16,12 +13,9 @@ namespace QuizApi.Controllers
     {
         private readonly QuizDbContext dbContext;
 
-        private readonly IWebHostEnvironment hostEnvironment;
-
-        public UsersController(QuizDbContext dbContext, IWebHostEnvironment hostEnvironment)
+        public UsersController(QuizDbContext dbContext)
         {
             this.dbContext = dbContext;
-            this.hostEnvironment = hostEnvironment;
         }
 
         [HttpGet]
@@ -43,6 +37,17 @@ namespace QuizApi.Controllers
             return Ok(users);
         }
 
+        [HttpGet("Me")]
+        [Authorize]
+        public async Task<IActionResult> GetMe()
+        {
+            int id = User.GetId();
+
+            UserDTO user = (await dbContext.Users.FindAsync(id))!;
+
+            return Ok(user);
+        }
+
         [HttpGet("{id:int}")]
         [AllowAnonymous]
         public async Task<IActionResult> Get(int id)
@@ -55,62 +60,19 @@ namespace QuizApi.Controllers
             return Ok(user);
         }
 
-        [HttpGet("Me")]
-        [Authorize]
-        public async Task<IActionResult> GetMe()
+        [HttpGet("{id:int}/QuestionSets")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetQuestionSets(int id)
         {
-            int id = User.GetId();
-
-            UserDTO user = (await dbContext.Users.FindAsync(id))!;
-
-            return Ok(user);
-        }
-
-        [HttpGet("Friends")]
-        [Authorize]
-        public IActionResult GetFriends()
-        {
-            int id = User.GetId();
-
-            IQueryable<FriendshipDTO> friends = dbContext.Friendships
-                .Where(r => r.MeId == id || r.TheyId == id);
-
-            return Ok(friends);
-        }
-
-        [HttpPost("ChangeAvatar")]
-        [Authorize]
-        [RequestSizeLimit(2 << 20)]
-        public async Task<IActionResult> ChangeAvatar([Required] [FileExtensions] IFormFile formFile)
-        {
-            string? extension = Path.GetExtension(formFile.FileName);
-
-            string path = Path.Combine(hostEnvironment.WebRootPath, "images", "avatars", $"{User.GetId()}{extension}");
-
-            using FileStream file = new(path, FileMode.Create);
-
-            await formFile.CopyToAsync(file);
-
-            return Created(path, null);
-        }
-
-        [HttpDelete("Friends/{id:int}")]
-        [Authorize]
-        public async Task<IActionResult> DeleteFriend(int id)
-        {
-            int myId = User.GetId();
-
-            UserDTO me = (await dbContext.Users.FindAsync(myId))!;
-
-            if (me.Friendships.SingleOrDefault(f => f.TheyId == id) is not FriendshipDTO friendship)
+            if (await dbContext.Users.FindAsync(id) is null)
             {
                 return NotFound();
             }
 
-            dbContext.Friendships.Remove(friendship);
-            await dbContext.SaveChangesAsync();
+            IQueryable<QuestionSetDTO> questionSets = dbContext.QuestionSets
+                .Where(s => s.CreatorId == id);
 
-            return Ok();
+            return Ok(questionSets);
         }
     }
 }

@@ -1,10 +1,7 @@
 ﻿using System.Security.Claims;
 
-using Microsoft.AspNetCore.Identity;
-
 using QuizApi.DTOs;
 using QuizApi.Enums;
-using QuizApi.Models;
 
 namespace QuizApi.Extensions
 {

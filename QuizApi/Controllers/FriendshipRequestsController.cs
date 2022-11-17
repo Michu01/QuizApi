@@ -2,9 +2,6 @@
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-
-using NuGet.Protocol.Plugins;
 
 using QuizApi.DbContexts;
 using QuizApi.DTOs;
@@ -42,10 +39,10 @@ namespace QuizApi.Controllers
         {
             int id = User.GetId();
 
-            IQueryable<FriendshipRequestDTO> requests = dbContext.FriendshipRequests
+            IQueryable<FriendshipRequestDTO> received = dbContext.FriendshipRequests
                 .Where(r => r.ReceiverId == id);
 
-            return Ok(requests);
+            return Ok(received);
         }
 
         [HttpGet("Sent")]
@@ -54,10 +51,10 @@ namespace QuizApi.Controllers
         {
             int id = User.GetId();
 
-            IQueryable<FriendshipRequestDTO> requests = dbContext.FriendshipRequests
+            IQueryable<FriendshipRequestDTO> sent = dbContext.FriendshipRequests
                 .Where(r => r.SenderId == id);
 
-            return Ok(requests);
+            return Ok(sent);
         }
 
         [HttpPost("Send")]
@@ -66,14 +63,13 @@ namespace QuizApi.Controllers
         {
             int id = User.GetId();
 
-            UserDTO sender = (await dbContext.Users.FindAsync(id))!;
-
             if (await dbContext.Users.FindAsync(userId) is not UserDTO receiver)
             {
                 return NotFound();
             }
 
-            if (sender.Friendships.Any(f => f.TheyId == userId))
+            if (await dbContext.Friendships.FindAsync(userId, id) is not null || 
+                await dbContext.Friendships.FindAsync(id, userId) is not null)
             {
                 return BadRequest("Already friends");
             }

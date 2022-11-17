@@ -1,18 +1,13 @@
 ﻿using System.ComponentModel.DataAnnotations;
-using System.Data.Common;
-using System.Security.Claims;
 
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 using QuizApi.DbContexts;
 using QuizApi.DTOs;
-using QuizApi.Enums;
 using QuizApi.Extensions;
 using QuizApi.Models;
-using QuizApi.Services;
 
 namespace QuizApi.Controllers
 {
@@ -79,6 +74,18 @@ namespace QuizApi.Controllers
             }
 
             return Forbid();
+        }
+
+        [HttpGet("Mine")]
+        [Authorize]
+        public IActionResult GetMine()
+        {
+            int id = User.GetId();
+
+            IQueryable<QuestionSetDTO> questionSets = dbContext.QuestionSets
+                .Where(s => s.CreatorId == id);
+
+            return Ok(questionSets);
         }
 
         [HttpPost]
@@ -157,6 +164,84 @@ namespace QuizApi.Controllers
             await dbContext.SaveChangesAsync();
 
             return Ok();
+        }
+
+        [HttpGet("{id:int}/Questions")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetQuestions(int id)
+        {
+            if (await Find(id) is not QuestionSetDTO questionSetDTO)
+            {
+                return NotFound();
+            }
+
+            if (!User.CanAccess(questionSetDTO))
+            {
+                return Forbid();
+            }
+
+            IQueryable<QuestionDTO> questions = dbContext.Questions
+                .Where(q => q.QuestionSetId == id);
+
+            return Ok(questions);
+        }
+
+        [HttpGet("{id:int}/Questions/{index}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetQuestion(int id, int index)
+        {
+            if (await Find(id) is not QuestionSetDTO questionSetDTO)
+            {
+                return NotFound();
+            }
+
+            if (!User.CanAccess(questionSetDTO))
+            {
+                return Forbid();
+            }
+
+            IQueryable<QuestionDTO> questions = dbContext.Questions
+                .Where(q => q.QuestionSetId == id);
+
+            if (index < 0 || index >= questions.Count())
+            {
+                return NotFound();
+            }
+
+            QuestionDTO question = questions.ElementAt(index);
+
+            return Ok(question);
+        }
+
+        [HttpPost("{id:int}/Questions")]
+        [Authorize]
+        public async Task<IActionResult> PostQuestion(int id, [Required] Question question)
+        {
+            if (await Find(id) is not QuestionSetDTO questionSetDTO)
+            {
+                return NotFound();
+            }
+
+            if (!User.CanModify(questionSetDTO))
+            {
+                return Forbid();
+            }
+
+            QuestionDTO questionDTO = new()
+            {
+                AnswerA = question.AnswerA,
+                AnswerB = question.AnswerB,
+                AnswerC = question.AnswerC,
+                AnswerD = question.AnswerD,
+                CorrectAnswer = question.CorrectAnswer,
+                Contents = question.Contents,
+                QuestionSetId = id
+            };
+
+            dbContext.Questions.Add(questionDTO);
+            await dbContext.SaveChangesAsync();
+
+            return CreatedAtAction(nameof(GetQuestion), questionDTO);
         }
     }
 }

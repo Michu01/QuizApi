@@ -1,14 +1,10 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 using QuizApi.DbContexts;
 using QuizApi.DTOs;
-
-using QuizApi.Enums;
 
 using QuizApi.Extensions;
 
@@ -32,59 +28,21 @@ namespace QuizApi.Controllers
             return await dbContext.Questions.FindAsync(id);
         }
 
-        private async Task<QuestionSetDTO?> FindQuestionSet(int id)
-        {
-            return await dbContext.QuestionSets.FindAsync(id);
-        }
-
-        [HttpGet]
+        [HttpGet("{id:int}")]
         [AllowAnonymous]
-        public async Task<IActionResult> Get([Required] int questionSetId)
+        public async Task<IActionResult> Get(int id)
         {
-            if (await FindQuestionSet(questionSetId) is not QuestionSetDTO questionSetDTO)
+            if (await Find(id) is not QuestionDTO questionDTO)
             {
                 return NotFound();
             }
 
-            if (!User.CanAccess(questionSetDTO))
+            if (!User.CanAccess(questionDTO.QuestionSet))
             {
                 return Forbid();
             }
 
-            await dbContext.Entry(questionSetDTO).Collection(q => q.Questions).LoadAsync();
-
-            return Ok(questionSetDTO.Questions);
-        }
-
-        [HttpPost]
-        [Authorize]
-        public async Task<IActionResult> Post([Required] int questionSetId, [Required] Question question)
-        {
-            if (await FindQuestionSet(questionSetId) is not QuestionSetDTO questionSetDTO)
-            {
-                return NotFound();
-            }
-
-            if (!User.CanModify(questionSetDTO))
-            {
-                return Forbid();
-            }
-
-            QuestionDTO questionDTO = new()
-            {
-                AnswerA = question.AnswerA,
-                AnswerB = question.AnswerB,
-                AnswerC = question.AnswerC,
-                AnswerD = question.AnswerD,
-                CorrectAnswer = question.CorrectAnswer,
-                Contents = question.Contents,
-                QuestionSetId = questionSetId
-            };
-
-            dbContext.Questions.Add(questionDTO);
-            await dbContext.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(Post), questionDTO);
+            return Ok(questionDTO);
         }
 
         [HttpPatch("{id:int}")]

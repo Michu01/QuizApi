@@ -3,7 +3,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-using QuizApi.DTOs;
 using QuizApi.Models;
 using QuizApi.Services;
 
@@ -26,9 +25,9 @@ namespace QuizApi.Controllers
         {
             try
             {
-                (UserDTO user, string token) = await authService.SignIn(authData);
+                Token token = await authService.SignIn(authData);
 
-                return CreatedAtAction(nameof(SignIn), new { user, token });
+                return Ok(token);
             }
             catch (Exception ex)
             {
@@ -42,9 +41,9 @@ namespace QuizApi.Controllers
         {
             try
             {
-                (UserDTO user, string token) = await authService.SignUp(authData);
+                Token token = await authService.SignUp(authData);
 
-                return CreatedAtAction(nameof(SignUp), new { user, token });
+                return Ok(token);
             }
             catch (Exception ex)
             {

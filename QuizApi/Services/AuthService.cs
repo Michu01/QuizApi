@@ -8,7 +8,6 @@ using Microsoft.IdentityModel.Tokens;
 using QuizApi.DbContexts;
 using QuizApi.DTOs;
 using QuizApi.Enums;
-using QuizApi.Extensions;
 using QuizApi.Models;
 
 namespace QuizApi.Services
@@ -28,7 +27,7 @@ namespace QuizApi.Services
             this.passwordHasher = passwordHasher;
         }
 
-        private string GenerateToken(UserDTO user)
+        private Token GenerateToken(UserDTO user)
         {
             string key = configuration["Jwt:Key"]!;
 
@@ -42,20 +41,22 @@ namespace QuizApi.Services
                 new(ClaimTypes.NameIdentifier, user.Id.ToString())
             };
 
+            DateTime expirationDate = DateTime.Now.AddMinutes(15);
+
             JwtSecurityToken securityToken = new(
                 configuration["Jwt:Issuer"],
                 configuration["Jwt:Audience"],
                 claims,
                 DateTime.Now,
-                DateTime.Now.AddMinutes(15),
+                expirationDate,
                 credentials);
 
             string token = new JwtSecurityTokenHandler().WriteToken(securityToken);
 
-            return token;
+            return new Token(token, expirationDate);
         }
 
-        public async Task<(UserDTO, string)> SignIn(UserAuthData authData)
+        public async Task<Token> SignIn(UserAuthData authData)
         {
             if (await dbContext.FindUserByName(authData.Name) is not UserDTO user)
             {
@@ -67,12 +68,12 @@ namespace QuizApi.Services
                 throw new Exception("Invalid password");
             }
 
-            string token = GenerateToken(user);
+            Token token = GenerateToken(user);
 
-            return (user, token);
+            return token;
         }
 
-        public async Task<(UserDTO, string)> SignUp(UserAuthData authData)
+        public async Task<Token> SignUp(UserAuthData authData)
         {
             if (await dbContext.FindUserByName(authData.Name) is not null)
             {
@@ -90,9 +91,9 @@ namespace QuizApi.Services
             dbContext.Users.Add(user);
             await dbContext.SaveChangesAsync();
 
-            string token = GenerateToken(user);
+            Token token = GenerateToken(user);
 
-            return (user, token);
+            return token;
         }
     }
 }
