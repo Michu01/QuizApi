@@ -1,4 +1,5 @@
-﻿using System.IdentityModel.Tokens.Jwt;
+﻿using System.Drawing.Drawing2D;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 
@@ -8,6 +9,7 @@ using Microsoft.IdentityModel.Tokens;
 using QuizApi.DbContexts;
 using QuizApi.DTOs;
 using QuizApi.Enums;
+using QuizApi.Extensions;
 using QuizApi.Models;
 
 namespace QuizApi.Services
@@ -63,7 +65,7 @@ namespace QuizApi.Services
                 throw new Exception("User not found");
             }
 
-            if (passwordHasher.VerifyHashedPassword(user, user.Password!, authData.Password!) != PasswordVerificationResult.Success)
+            if (passwordHasher.VerifyHashedPassword(user, user.Password, authData.Password) != PasswordVerificationResult.Success)
             {
                 throw new Exception("Invalid password");
             }
@@ -86,9 +88,27 @@ namespace QuizApi.Services
                 Role = UserRole.User
             };
 
-            user.Password = passwordHasher.HashPassword(user, authData.Password!);
+            user.Password = passwordHasher.HashPassword(user, authData.Password);
 
             dbContext.Users.Add(user);
+            await dbContext.SaveChangesAsync();
+
+            Token token = GenerateToken(user);
+
+            return token;
+        }
+
+        public async Task<Token> ChangePassword(int id, PasswordChange passwordChange)
+        {
+            UserDTO user = (await dbContext.Users.FindAsync(id))!;
+
+            if (passwordHasher.VerifyHashedPassword(user, user.Password, passwordChange.CurrentPassword) != PasswordVerificationResult.Success)
+            {
+                throw new Exception("Invalid password");
+            }
+
+            user.Password = passwordHasher.HashPassword(user, passwordChange.NewPassword);
+
             await dbContext.SaveChangesAsync();
 
             Token token = GenerateToken(user);

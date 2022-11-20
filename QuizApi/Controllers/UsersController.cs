@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 using QuizApi.DbContexts;
 using QuizApi.DTOs;
 using QuizApi.Extensions;
+using QuizApi.Models;
+using QuizApi.Services;
 
 namespace QuizApi.Controllers
 {
@@ -13,9 +15,12 @@ namespace QuizApi.Controllers
     {
         private readonly QuizDbContext dbContext;
 
-        public UsersController(QuizDbContext dbContext)
+        private readonly IAuthService authService;
+
+        public UsersController(QuizDbContext dbContext, IAuthService authService)
         {
             this.dbContext = dbContext;
+            this.authService = authService;
         }
 
         [HttpGet]
@@ -46,6 +51,34 @@ namespace QuizApi.Controllers
             UserDTO user = (await dbContext.Users.FindAsync(id))!;
 
             return Ok(user);
+        }
+
+        [HttpGet("Me/QuestionSets")]
+        [Authorize]
+        public IActionResult GetMyQuestionSets()
+        {
+            int id = User.GetId();
+
+            IQueryable<QuestionSetDTO> questionSets = dbContext.QuestionSets
+                .Where(s => s.CreatorId == id);
+
+            return Ok(questionSets);
+        }
+
+        [HttpPost("Me/ChangePassword")]
+        [Authorize]
+        public async Task<IActionResult> ChangePassword(PasswordChange passwordChange)
+        {
+            if (passwordChange.CurrentPassword == passwordChange.NewPassword)
+            {
+                return BadRequest("New password cannot be the same as the old one");
+            }
+
+            int id = User.GetId();
+
+            Token token = await authService.ChangePassword(id, passwordChange);
+
+            return Ok(token);
         }
 
         [HttpGet("{id:int}")]

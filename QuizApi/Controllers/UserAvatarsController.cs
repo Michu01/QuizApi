@@ -12,23 +12,62 @@ namespace QuizApi.Controllers
     {
         private readonly IWebHostEnvironment hostEnvironment;
 
+        private readonly ISet<string> allowedExtensions = new HashSet<string>()
+        {
+            ".jpg", ".png", ".gif", ".jpeg"
+        };
+
         public UserAvatarsController(IWebHostEnvironment hostEnvironment)
         {
             this.hostEnvironment = hostEnvironment;
         }
 
-        [HttpPost]
+        private string AvatarsPath => Path.Combine(hostEnvironment.WebRootPath, "images", "avatars");
+
+        private string[] GetMatches(int id) => Directory.GetFiles(AvatarsPath, $"{id}.*");
+
+        [HttpGet("Path")]
+        [Authorize]
+        public IActionResult GetPath()
+        {
+            int id = User.GetId();
+
+            string[] matches = GetMatches(id);
+
+            if (matches.Length == 0)
+            {
+                return NotFound();
+            }
+
+            string result = Path.GetRelativePath(hostEnvironment.WebRootPath, matches[0]);
+
+            return Ok(result);
+        }
+
+        [HttpPost("Change")]
         [Authorize]
         [RequestSizeLimit(2 << 20)]
-        public async Task<IActionResult> ChangeAvatar([Required][FileExtensions] IFormFile formFile)
+        public async Task<IActionResult> Change([Required] IFormFile file)
         {
-            string? extension = Path.GetExtension(formFile.FileName);
+            string? extension = Path.GetExtension(file.FileName);
 
-            string path = Path.Combine(hostEnvironment.WebRootPath, "images", "avatars", $"{User.GetId()}{extension}");
+            if (!allowedExtensions.Contains(extension))
+            {
+                return BadRequest($"Invalid extension. Accepted extensions are: {string.Join(',', allowedExtensions)}");
+            }
 
-            using FileStream file = new(path, FileMode.Create);
+            int id = User.GetId();
 
-            await formFile.CopyToAsync(file);
+            foreach (string match in GetMatches(id))
+            {
+                System.IO.File.Delete(match);
+            }
+
+            string path = Path.Combine(AvatarsPath, $"{User.GetId()}{extension}");
+
+            using FileStream fileStream = new(path, FileMode.Create);
+
+            await file.CopyToAsync(fileStream);
 
             return Created(path, null);
         }

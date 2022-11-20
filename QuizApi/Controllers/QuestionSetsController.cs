@@ -76,18 +76,6 @@ namespace QuizApi.Controllers
             return Forbid();
         }
 
-        [HttpGet("Mine")]
-        [Authorize]
-        public IActionResult GetMine()
-        {
-            int id = User.GetId();
-
-            IQueryable<QuestionSetDTO> questionSets = dbContext.QuestionSets
-                .Where(s => s.CreatorId == id);
-
-            return Ok(questionSets);
-        }
-
         [HttpPost]
         [Authorize]
         public async Task<IActionResult> Post([Required] QuestionSet questionSet)

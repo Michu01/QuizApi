@@ -12,6 +12,13 @@ using QuizApi.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddCors(options =>
+    options.AddDefaultPolicy(policy => policy
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .AllowAnyOrigin())
+    );
+
 builder.Services.AddControllers();
 
 // Add services to the container.
@@ -81,6 +88,8 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseStaticFiles();
+
+app.UseCors();
 
 app.UseAuthentication();
 
