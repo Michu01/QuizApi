@@ -9,12 +9,12 @@ namespace QuizApi.DTOs
 
         [NotNull]
         [JsonIgnore]
-        public UserDTO? Me { get; set; }
+        public virtual UserDTO? Me { get; set; }
 
         public int TheyId { get; set; }
 
         [NotNull]
         [JsonIgnore]
-        public UserDTO? They { get; set; }
+        public virtual UserDTO? They { get; set; }
     }
 }

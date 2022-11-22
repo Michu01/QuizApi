@@ -37,7 +37,7 @@ namespace QuizApi.Controllers
                 return NotFound();
             }
 
-            if (!User.CanAccess(questionDTO.QuestionSet))
+            if (!await User.CanAccess(questionDTO.QuestionSet, dbContext))
             {
                 return Forbid();
             }

@@ -6,8 +6,11 @@ using Microsoft.EntityFrameworkCore;
 
 using QuizApi.DbContexts;
 using QuizApi.DTOs;
+using QuizApi.Enums;
 using QuizApi.Extensions;
 using QuizApi.Models;
+
+using System.Collections.Concurrent;
 
 namespace QuizApi.Controllers
 {
@@ -35,14 +38,15 @@ namespace QuizApi.Controllers
         public IActionResult Get(
             int pageId = 0, 
             int limit = 10, 
-            string? namePattern = null, 
-            int? categoryId = null)
+            string? namePattern = null,
+            int? categoryId = null,
+            QuestionSetCreatorFilter? creatorFilter = null)
         {
             limit = Math.Min(limit, 100);
 
-            IEnumerable<QuestionSetDTO> questionSets = dbContext.QuestionSets
-                .AsEnumerable()
-                .Where(qs => User.CanAccess(qs));
+            IAsyncEnumerable<QuestionSetDTO> questionSets = dbContext.QuestionSets
+                .AsAsyncEnumerable()
+                .WhereAwait(async qs => await User.CanAccess(qs, dbContext));
 
             if (!string.IsNullOrEmpty(namePattern))
             {
@@ -52,6 +56,28 @@ namespace QuizApi.Controllers
             if (categoryId is not null)
             {
                 questionSets = questionSets.Where(s => s.CategoryId == categoryId);
+            }
+
+            if (creatorFilter is not null)
+            {
+                if (User.Identity is null)
+                {
+                    return BadRequest("User not signed in");
+                }
+
+                int id = User.GetId();
+
+                if (creatorFilter == QuestionSetCreatorFilter.Me)
+                {
+                    questionSets = questionSets.Where(s => s.CreatorId == id);
+                }
+                else if (creatorFilter == QuestionSetCreatorFilter.Friends)
+                {
+                    IEnumerable<QuestionSetDTO> friendsQuestionSets = dbContext.GetUserFriendsQuestionSets(id);
+
+                    questionSets = questionSets.Intersect(friendsQuestionSets.ToAsyncEnumerable());
+                }
+                else throw new NotImplementedException();
             }
 
             questionSets = questionSets.Skip(limit * pageId).Take(limit);
@@ -68,7 +94,7 @@ namespace QuizApi.Controllers
                 return NotFound();
             }
 
-            if (User.CanAccess(questionSetDTO))
+            if (await User.CanAccess(questionSetDTO, dbContext))
             {
                 return Ok(questionSetDTO);
             }
@@ -80,35 +106,21 @@ namespace QuizApi.Controllers
         [Authorize]
         public async Task<IActionResult> Post([Required] QuestionSet questionSet)
         {
-            try
+            int userId = User.GetId();
+
+            QuestionSetDTO questionSetDTO = new()
             {
-                int userId = User.GetId();
+                Name = questionSet.Name,
+                Description = questionSet.Description,
+                Access = questionSet.Access,
+                CategoryId = questionSet.CategoryId,
+                CreatorId = userId
+            };
 
-                QuestionSetDTO questionSetDTO = new()
-                {
-                    Name = questionSet.Name,
-                    Access = questionSet.Access,
-                    CategoryId = questionSet.CategoryId,
-                    CreatorId = userId
-                };
+            await dbContext.QuestionSets.AddAsync(questionSetDTO);
+            await dbContext.SaveChangesAsync();
 
-                await dbContext.QuestionSets.AddAsync(questionSetDTO);
-                await dbContext.SaveChangesAsync();
-
-                return CreatedAtAction(nameof(Post), questionSetDTO);
-            }
-            catch (DbUpdateException ex)
-            {
-                logger.LogError("{Message}", ex.InnerException?.Message);
-
-                return BadRequest(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError("{Message}", ex.Message);
-
-                return BadRequest(ex.Message);
-            }
+            return CreatedAtAction(nameof(Post), questionSetDTO);
         }
 
         [HttpPatch("{id:int}")]
@@ -126,9 +138,10 @@ namespace QuizApi.Controllers
             }
 
             questionSetDTO.Name = questionSet.Name;
+            questionSetDTO.Description = questionSet.Description;
             questionSetDTO.Access = questionSet.Access;
             questionSetDTO.CategoryId = questionSet.CategoryId;
-
+            
             await dbContext.SaveChangesAsync();
 
             return Ok(questionSetDTO);
@@ -163,7 +176,7 @@ namespace QuizApi.Controllers
                 return NotFound();
             }
 
-            if (!User.CanAccess(questionSetDTO))
+            if (!await User.CanAccess(questionSetDTO, dbContext))
             {
                 return Forbid();
             }
@@ -183,7 +196,7 @@ namespace QuizApi.Controllers
                 return NotFound();
             }
 
-            if (!User.CanAccess(questionSetDTO))
+            if (!await User.CanAccess(questionSetDTO, dbContext))
             {
                 return Forbid();
             }

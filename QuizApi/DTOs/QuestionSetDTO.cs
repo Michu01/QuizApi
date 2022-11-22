@@ -20,6 +20,11 @@ namespace QuizApi.DTOs
         [NotNull]
         public string? Name { get; set; }
 
+        [Required]
+        [StringLength(256)]
+        [NotNull]
+        public string? Description { get; set; }
+
         public QuestionSetAccess Access { get; set; }
 
         [JsonConverter(typeof(JsonDateOnlyConverter))]

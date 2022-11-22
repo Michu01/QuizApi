@@ -13,6 +13,11 @@ namespace QuizApi.Models
         public string? Name { get; set; }
 
         [Required]
+        [StringLength(256)]
+        [NotNull]
+        public string? Description { get; set; }
+
+        [Required]
         public QuestionSetAccess Access { get; set; }
 
         [Required]

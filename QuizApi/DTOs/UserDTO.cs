@@ -41,24 +41,5 @@ namespace QuizApi.DTOs
 
         [JsonIgnore]
         public virtual ICollection<FriendshipRequestDTO> FriendshipRequests { get; set; } = new List<FriendshipRequestDTO>();
-
-        [JsonIgnore]
-        [NotMapped]
-        public IEnumerable<User> Friends => Friendships
-            .Select(f => new User(f.MeId == Id ? f.TheyId : f.MeId));
-
-        [JsonIgnore]
-        [NotMapped]
-        public IEnumerable<User> ReceivedFriendshipRequests => FriendshipRequests
-            .Where(f => f.ReceiverId == Id)
-            .Select(f => new User(f.SenderId));
-
-        [JsonIgnore]
-        [NotMapped]
-        public IEnumerable<User> SentFriendshipRequests => FriendshipRequests
-            .Where(f => f.SenderId == Id)
-            .Select(f => new User(f.ReceiverId));
-
-        public bool IsFriend(int userId) => Friends.Any(user => user.Id == userId);
     }
 }

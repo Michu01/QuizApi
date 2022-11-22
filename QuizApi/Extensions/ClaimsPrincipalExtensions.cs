@@ -1,5 +1,6 @@
 ﻿using System.Security.Claims;
 
+using QuizApi.DbContexts;
 using QuizApi.DTOs;
 using QuizApi.Enums;
 
@@ -12,24 +13,24 @@ namespace QuizApi.Extensions
             return int.Parse(claimsPrincipal.FindFirstValue(ClaimTypes.NameIdentifier));
         }
 
-        public static UserRole GetRole(this ClaimsPrincipal claimsPrincipal)
+        public static UserRole? GetRole(this ClaimsPrincipal claimsPrincipal)
         {
-            return Enum.Parse<UserRole>(claimsPrincipal.FindFirstValue(ClaimTypes.Role));
+            return claimsPrincipal.FindFirstValue(ClaimTypes.Role) is string value ? Enum.Parse<UserRole>(value) : null;
         }
 
-        public static bool CanAccess(this ClaimsPrincipal claimsPrincipal, QuestionSetDTO questionSet)
+        public static async Task<bool> CanAccess(this ClaimsPrincipal claimsPrincipal, QuestionSetDTO questionSet, QuizDbContext dbContext)
         {
             if (questionSet.Access == QuestionSetAccess.Public)
             {
                 return true;
             }
 
-            if (claimsPrincipal.Identity is null)
+            if (claimsPrincipal.Identity is null || claimsPrincipal.GetRole() is not UserRole role)
             {
                 return false;
             }
 
-            if (claimsPrincipal.GetRole() == UserRole.Admin)
+            if (role == UserRole.Admin)
             {
                 return true;
             }
@@ -39,7 +40,7 @@ namespace QuizApi.Extensions
             return questionSet.Access switch
             {
                 QuestionSetAccess.Private => userId == questionSet.CreatorId,
-                QuestionSetAccess.Friends => questionSet.Creator.IsFriend(userId),
+                QuestionSetAccess.Friends => await dbContext.AreUsersFriends(userId, questionSet.CreatorId),
                 _ => throw new NotImplementedException()
             };
         }

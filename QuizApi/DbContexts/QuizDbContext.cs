@@ -76,5 +76,17 @@ namespace QuizApi.DbContexts
         {
             return await Users.Where(user => user.Name! == name).SingleOrDefaultAsync();
         }
+
+        public async Task<bool> AreUsersFriends(int userId1, int userId2)
+        {
+            return await Friendships.FindAsync(userId1, userId2) != null || await Friendships.FindAsync(userId2, userId1) != null;
+        }
+
+        public IEnumerable<QuestionSetDTO> GetUserFriendsQuestionSets(int userId)
+        {
+            return Friendships
+                .Where(f => f.MeId == userId || f.TheyId == userId)
+                .Join(QuestionSets, f => f.MeId == userId ? f.TheyId : f.MeId, qs => qs.CreatorId, (_, qs) => qs);
+        }
     }
 }

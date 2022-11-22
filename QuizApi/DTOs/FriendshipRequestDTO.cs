@@ -9,12 +9,12 @@ namespace QuizApi.DTOs
 
         [NotNull]
         [JsonIgnore]
-        public UserDTO? Sender { get; set; }
+        public virtual UserDTO? Sender { get; set; }
 
         public int ReceiverId { get; set; }
 
         [NotNull]
         [JsonIgnore]
-        public UserDTO? Receiver { get; set; }
+        public virtual UserDTO? Receiver { get; set; }
     }
 }
