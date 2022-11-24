@@ -6,8 +6,8 @@ namespace QuizApi.Services
     {
         Task<Token> ChangePassword(int id, PasswordChange passwordChange);
 
-        Task<Token> SignIn(UserAuthData authData);
+        Task<Token> SignIn(AuthData authData);
 
-        Task<Token> SignUp(UserAuthData authData);
+        Task<Token> SignUp(AuthData authData);
     }
 }

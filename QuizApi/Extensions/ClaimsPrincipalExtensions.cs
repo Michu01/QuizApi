@@ -13,24 +13,24 @@ namespace QuizApi.Extensions
             return int.Parse(claimsPrincipal.FindFirstValue(ClaimTypes.NameIdentifier));
         }
 
-        public static UserRole? GetRole(this ClaimsPrincipal claimsPrincipal)
+        public static Role? GetRole(this ClaimsPrincipal claimsPrincipal)
         {
-            return claimsPrincipal.FindFirstValue(ClaimTypes.Role) is string value ? Enum.Parse<UserRole>(value) : null;
+            return claimsPrincipal.FindFirstValue(ClaimTypes.Role) is string value ? Enum.Parse<Role>(value) : null;
         }
 
-        public static async Task<bool> CanAccess(this ClaimsPrincipal claimsPrincipal, QuestionSetDTO questionSet, QuizDbContext dbContext)
+        public static async Task<bool> CanAccess(this ClaimsPrincipal claimsPrincipal, QuizDTO questionSet, QuizDbContext dbContext)
         {
-            if (questionSet.Access == QuestionSetAccess.Public)
+            if (questionSet.Access == Access.Public)
             {
                 return true;
             }
 
-            if (claimsPrincipal.Identity is null || claimsPrincipal.GetRole() is not UserRole role)
+            if (claimsPrincipal.Identity is null || claimsPrincipal.GetRole() is not Role role)
             {
                 return false;
             }
 
-            if (role == UserRole.Admin)
+            if (role == Role.Admin)
             {
                 return true;
             }
@@ -39,15 +39,15 @@ namespace QuizApi.Extensions
 
             return questionSet.Access switch
             {
-                QuestionSetAccess.Private => userId == questionSet.CreatorId,
-                QuestionSetAccess.Friends => await dbContext.AreUsersFriends(userId, questionSet.CreatorId),
+                Access.Private => userId == questionSet.CreatorId,
+                Access.Friends => await dbContext.AreUsersFriends(userId, questionSet.CreatorId),
                 _ => throw new NotImplementedException()
             };
         }
 
-        public static bool CanModify(this ClaimsPrincipal claimsPrincipal, QuestionSetDTO questionSet)
+        public static bool CanModify(this ClaimsPrincipal claimsPrincipal, QuizDTO questionSet)
         {
-            return claimsPrincipal.GetRole() == UserRole.Admin || 
+            return claimsPrincipal.GetRole() == Role.Admin || 
                 claimsPrincipal.GetId() == questionSet.CreatorId;
         }
     }

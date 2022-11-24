@@ -3,8 +3,8 @@
 namespace QuizApi.Enums
 {
     [JsonConverter(typeof(JsonStringEnumConverter))]
-    public enum UserRole
+    public enum Answer
     {
-        User, Admin
+        A, B, C, D
     }
 }

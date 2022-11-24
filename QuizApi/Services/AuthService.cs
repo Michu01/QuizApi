@@ -1,5 +1,4 @@
-﻿using System.Drawing.Drawing2D;
-using System.IdentityModel.Tokens.Jwt;
+﻿using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 
@@ -9,7 +8,6 @@ using Microsoft.IdentityModel.Tokens;
 using QuizApi.DbContexts;
 using QuizApi.DTOs;
 using QuizApi.Enums;
-using QuizApi.Extensions;
 using QuizApi.Models;
 
 namespace QuizApi.Services
@@ -58,7 +56,7 @@ namespace QuizApi.Services
             return new Token(token, expirationDate);
         }
 
-        public async Task<Token> SignIn(UserAuthData authData)
+        public async Task<Token> SignIn(AuthData authData)
         {
             if (await dbContext.FindUserByName(authData.Name) is not UserDTO user)
             {
@@ -75,7 +73,7 @@ namespace QuizApi.Services
             return token;
         }
 
-        public async Task<Token> SignUp(UserAuthData authData)
+        public async Task<Token> SignUp(AuthData authData)
         {
             if (await dbContext.FindUserByName(authData.Name) is not null)
             {
@@ -85,7 +83,7 @@ namespace QuizApi.Services
             UserDTO user = new()
             {
                 Name = authData.Name,
-                Role = UserRole.User
+                Role = Role.User
             };
 
             user.Password = passwordHasher.HashPassword(user, authData.Password);

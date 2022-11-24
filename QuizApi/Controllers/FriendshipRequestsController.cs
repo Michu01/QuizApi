@@ -57,19 +57,23 @@ namespace QuizApi.Controllers
             return Ok(sent);
         }
 
-        [HttpPost("Send")]
+        [HttpPost("Send/{userId:int}")]
         [Authorize]
-        public async Task<IActionResult> Send([Required] int userId)
+        public async Task<IActionResult> Send(int userId)
         {
             int id = User.GetId();
+
+            if (id == userId)
+            {
+                return BadRequest("You cannot be friends with yourself! Find some real friends...");
+            }
 
             if (await dbContext.Users.FindAsync(userId) is not UserDTO receiver)
             {
                 return NotFound();
             }
 
-            if (await dbContext.Friendships.FindAsync(userId, id) is not null || 
-                await dbContext.Friendships.FindAsync(id, userId) is not null)
+            if (await dbContext.AreUsersFriends(id, userId))
             {
                 return BadRequest("Already friends");
             }
@@ -86,7 +90,24 @@ namespace QuizApi.Controllers
             return CreatedAtAction(nameof(Send), friendshipRequest);
         }
 
-        [HttpPost("{senderId:int}/Accept")]
+        [HttpDelete("Cancel/{userId:int}")]
+        [Authorize]
+        public async Task<IActionResult> Cancel(int userId)
+        {
+            int id = User.GetId();
+
+            if (await dbContext.FriendshipRequests.FindAsync(id, userId) is not FriendshipRequestDTO friendshipRequest)
+            {
+                return NotFound();
+            }
+
+            dbContext.FriendshipRequests.Remove(friendshipRequest);
+            await dbContext.SaveChangesAsync();
+
+            return Ok();
+        }
+
+        [HttpPost("Accept/{senderId:int}")]
         [Authorize]
         public async Task<IActionResult> Accept(int senderId)
         {
@@ -110,7 +131,7 @@ namespace QuizApi.Controllers
             return CreatedAtAction(nameof(Accept), friendship);
         }
 
-        [HttpDelete("{senderId:int}/Decline")]
+        [HttpDelete("Decline/{senderId:int}")]
         [Authorize]
         public async Task<IActionResult> Decline(int senderId)
         {

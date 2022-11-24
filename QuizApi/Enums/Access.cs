@@ -3,7 +3,7 @@
 namespace QuizApi.Enums
 {
     [JsonConverter(typeof(JsonStringEnumConverter))]
-    public enum QuestionSetAccess
+    public enum Access
     {
         Private, Friends, Public
     }

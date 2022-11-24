@@ -33,6 +33,6 @@ namespace QuizApi.Models
         public string? AnswerD { get; set; }
 
         [Required]
-        public QuestionAnswer CorrectAnswer { get; set; }
+        public Answer CorrectAnswer { get; set; }
     }
 }

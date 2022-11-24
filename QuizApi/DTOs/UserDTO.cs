@@ -1,5 +1,4 @@
 ﻿using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 
@@ -7,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 
 using QuizApi.Enums;
 using QuizApi.JsonConverters;
-using QuizApi.Models;
 
 namespace QuizApi.DTOs
 {
@@ -28,7 +26,7 @@ namespace QuizApi.DTOs
         [JsonIgnore]
         public string? Password { get; set; }
 
-        public UserRole Role { get; set; }
+        public Role Role { get; set; }
 
         [JsonConverter(typeof(JsonDateOnlyConverter))]
         public DateTime JoinDate { get; set; }
@@ -37,7 +35,7 @@ namespace QuizApi.DTOs
         public virtual ICollection<FriendshipDTO> Friendships { get; set; } = new List<FriendshipDTO>();
 
         [JsonIgnore]
-        public virtual ICollection<QuestionSetDTO> QuestionSets { get; set; } = new List<QuestionSetDTO>();
+        public virtual ICollection<QuizDTO> QuestionSets { get; set; } = new List<QuizDTO>();
 
         [JsonIgnore]
         public virtual ICollection<FriendshipRequestDTO> FriendshipRequests { get; set; } = new List<FriendshipRequestDTO>();

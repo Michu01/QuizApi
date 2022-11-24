@@ -1,11 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 using QuizApi.DbContexts;
 using QuizApi.DTOs;
 using QuizApi.Extensions;
-using QuizApi.Models;
-using QuizApi.Services;
 
 namespace QuizApi.Controllers
 {
@@ -15,12 +14,9 @@ namespace QuizApi.Controllers
     {
         private readonly QuizDbContext dbContext;
 
-        private readonly IAuthService authService;
-
-        public UsersController(QuizDbContext dbContext, IAuthService authService)
+        public UsersController(QuizDbContext dbContext)
         {
             this.dbContext = dbContext;
-            this.authService = authService;
         }
 
         [HttpGet]
@@ -28,13 +24,28 @@ namespace QuizApi.Controllers
         public IActionResult Get(
            int pageId = 0,
            int limit = 10,
-           string? namePattern = null)
+           string? namePattern = null,
+           bool friendsOnly = false)
         {
-            IQueryable<UserDTO> users = dbContext.Users;
+            IQueryable<UserDTO> usersQuery = dbContext.Users;
 
             if (!string.IsNullOrEmpty(namePattern))
             {
-                users = users.Where(u => u.Name.Contains(namePattern));
+                usersQuery = usersQuery.Where(u => u.Name.Contains(namePattern));
+            }
+
+            IAsyncEnumerable<UserDTO> users = usersQuery.AsAsyncEnumerable();
+
+            if (friendsOnly)
+            {
+                if (User.Identity == null || !User.Claims.Any())
+                {
+                    return BadRequest("You must be signed in to view friends");
+                }
+
+                int id = User.GetId();
+
+                users = users.WhereAwait(async u => await dbContext.AreUsersFriends(id, u.Id));
             }
  
             users = users.Skip(pageId * limit).Take(limit);
@@ -44,41 +55,13 @@ namespace QuizApi.Controllers
 
         [HttpGet("Me")]
         [Authorize]
-        public async Task<IActionResult> GetMe()
+        public async Task<IActionResult> Get()
         {
             int id = User.GetId();
 
             UserDTO user = (await dbContext.Users.FindAsync(id))!;
 
             return Ok(user);
-        }
-
-        [HttpGet("Me/QuestionSets")]
-        [Authorize]
-        public IActionResult GetMyQuestionSets()
-        {
-            int id = User.GetId();
-
-            IQueryable<QuestionSetDTO> questionSets = dbContext.QuestionSets
-                .Where(s => s.CreatorId == id);
-
-            return Ok(questionSets);
-        }
-
-        [HttpPost("Me/ChangePassword")]
-        [Authorize]
-        public async Task<IActionResult> ChangePassword(PasswordChange passwordChange)
-        {
-            if (passwordChange.CurrentPassword == passwordChange.NewPassword)
-            {
-                return BadRequest("New password cannot be the same as the old one");
-            }
-
-            int id = User.GetId();
-
-            Token token = await authService.ChangePassword(id, passwordChange);
-
-            return Ok(token);
         }
 
         [HttpGet("{id:int}")]
@@ -93,19 +76,22 @@ namespace QuizApi.Controllers
             return Ok(user);
         }
 
-        [HttpGet("{id:int}/QuestionSets")]
-        [AllowAnonymous]
-        public async Task<IActionResult> GetQuestionSets(int id)
+        [HttpGet("{id:int}/IsFriend")]
+        [Authorize]
+        public async Task<IActionResult> IsFriend(int id)
         {
-            if (await dbContext.Users.FindAsync(id) is null)
-            {
-                return NotFound();
-            }
+            int myId = User.GetId();
 
-            IQueryable<QuestionSetDTO> questionSets = dbContext.QuestionSets
-                .Where(s => s.CreatorId == id);
+            return Ok(await dbContext.AreUsersFriends(myId, id));
+        }
 
-            return Ok(questionSets);
+        [HttpGet("{id:int}/IsInvited")]
+        [Authorize]
+        public async Task<IActionResult> IsInvited(int id)
+        {
+            int myId = User.GetId();
+
+            return Ok(await dbContext.FriendshipRequests.FindAsync(myId, id) is not null);
         }
     }
 }

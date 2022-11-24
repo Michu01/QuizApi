@@ -8,7 +8,7 @@ namespace QuizApi.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class UserAvatarsController : ControllerBase
+    public class AvatarsController : ControllerBase
     {
         private readonly IWebHostEnvironment hostEnvironment;
 
@@ -17,7 +17,7 @@ namespace QuizApi.Controllers
             ".jpg", ".png", ".gif", ".jpeg"
         };
 
-        public UserAvatarsController(IWebHostEnvironment hostEnvironment)
+        public AvatarsController(IWebHostEnvironment hostEnvironment)
         {
             this.hostEnvironment = hostEnvironment;
         }
@@ -32,6 +32,12 @@ namespace QuizApi.Controllers
         {
             int id = User.GetId();
 
+            return GetPath(id);
+        }
+
+        [HttpGet("{id:int}/Path")]
+        public IActionResult GetPath(int id)
+        {
             string[] matches = GetMatches(id);
 
             if (matches.Length == 0)

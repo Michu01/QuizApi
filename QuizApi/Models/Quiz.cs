@@ -5,7 +5,7 @@ using QuizApi.Enums;
 
 namespace QuizApi.Models
 {
-    public class QuestionSet
+    public class Quiz
     {
         [Required]
         [StringLength(64)]
@@ -18,7 +18,7 @@ namespace QuizApi.Models
         public string? Description { get; set; }
 
         [Required]
-        public QuestionSetAccess Access { get; set; }
+        public Access Access { get; set; }
 
         [Required]
         public int CategoryId { get; set; }

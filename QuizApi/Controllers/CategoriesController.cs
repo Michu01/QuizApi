@@ -11,11 +11,11 @@ namespace QuizApi.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class QuestionSetCategoriesController : ControllerBase
+    public class CategoriesController : ControllerBase
     {
         private readonly QuizDbContext dbContext;
 
-        public QuestionSetCategoriesController(QuizDbContext dbContext)
+        public CategoriesController(QuizDbContext dbContext)
         {
             this.dbContext = dbContext;
         }
@@ -31,7 +31,7 @@ namespace QuizApi.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> Get(int id)
         {
-            if (await dbContext.QuestionSetCategories.FindAsync(id) is not QuestionSetCategoryDTO questionSetCategory)
+            if (await dbContext.QuestionSetCategories.FindAsync(id) is not CategoryDTO questionSetCategory)
             {
                 return NotFound();
             }
@@ -41,9 +41,9 @@ namespace QuizApi.Controllers
 
         [HttpPost]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Post([Required] QuestionSetCategory questionSetCategory)
+        public async Task<IActionResult> Post([Required] Category questionSetCategory)
         {
-            QuestionSetCategoryDTO dto = new()
+            CategoryDTO dto = new()
             {
                 Name = questionSetCategory.Name,
             };
@@ -58,7 +58,7 @@ namespace QuizApi.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(int id)
         {
-            if (await dbContext.QuestionSetCategories.FindAsync(id) is not QuestionSetCategoryDTO dto)
+            if (await dbContext.QuestionSetCategories.FindAsync(id) is not CategoryDTO dto)
             {
                 return NotFound();
             }

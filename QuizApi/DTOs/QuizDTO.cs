@@ -10,7 +10,7 @@ using QuizApi.JsonConverters;
 namespace QuizApi.DTOs
 {
     [Index(nameof(Name), IsUnique = true)]
-    public class QuestionSetDTO
+    public class QuizDTO
     {
         [Key]
         public int Id { get; set; }
@@ -25,7 +25,7 @@ namespace QuizApi.DTOs
         [NotNull]
         public string? Description { get; set; }
 
-        public QuestionSetAccess Access { get; set; }
+        public Access Access { get; set; }
 
         [JsonConverter(typeof(JsonDateOnlyConverter))]
         public DateTime CreationDate { get; set; }
@@ -40,7 +40,7 @@ namespace QuizApi.DTOs
 
         [NotNull]
         [JsonIgnore]
-        public virtual QuestionSetCategoryDTO? Category { get; set; }
+        public virtual CategoryDTO? Category { get; set; }
 
         [NotNull]
         [JsonIgnore]

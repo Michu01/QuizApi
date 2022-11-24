@@ -3,16 +3,11 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace QuizApi.Models
 {
-    public class UserAuthData
+    public class Category
     {
         [Required]
-        [StringLength(32)]
+        [StringLength(64)]
         [NotNull]
         public string? Name { get; set; }
-
-        [Required]
-        [StringLength(32)]
-        [NotNull]
-        public string? Password { get; set; }
     }
 }

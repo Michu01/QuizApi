@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace QuizApi.DTOs
 {
     [Index(nameof(Name), IsUnique = true)]
-    public class QuestionSetCategoryDTO
+    public class CategoryDTO
     {
         [Key]
         public int Id { get; set; }
@@ -19,6 +19,6 @@ namespace QuizApi.DTOs
 
         [NotNull]
         [JsonIgnore]
-        public virtual IEnumerable<QuestionSetDTO>? QuestionSets { get; set; }
+        public virtual IEnumerable<QuizDTO>? QuestionSets { get; set; }
     }
 }

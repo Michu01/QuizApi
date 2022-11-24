@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 using QuizApi.DbContexts;
 using QuizApi.DTOs;
@@ -33,6 +32,8 @@ namespace QuizApi.Controllers
 
             return Ok(friends);
         }
+
+       
 
         [HttpDelete("{id:int}")]
         [Authorize]

@@ -10,27 +10,35 @@ using QuizApi.Enums;
 using QuizApi.Extensions;
 using QuizApi.Models;
 
-using System.Collections.Concurrent;
-
 namespace QuizApi.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class QuestionSetsController : ControllerBase
+    public class QuizesController : ControllerBase
     {
         private readonly QuizDbContext dbContext;
 
-        private readonly ILogger<QuestionSetsController> logger;
+        private readonly ILogger<QuizesController> logger;
 
-        public QuestionSetsController(QuizDbContext dbContext, ILogger<QuestionSetsController> logger)
+        public QuizesController(QuizDbContext dbContext, ILogger<QuizesController> logger)
         {
             this.dbContext = dbContext;
             this.logger = logger;
         }
 
-        private async Task<QuestionSetDTO?> Find(int id)
+        private async Task<QuizDTO?> Find(int id)
         {
             return await dbContext.QuestionSets.FindAsync(id);
+        }
+
+        private async Task<bool> IsNameConflict(string name)
+        {
+            return await dbContext.QuestionSets.AnyAsync(q => q.Name == name);
+        }
+
+        private async Task<bool> DoesCategoryExist(int categoryId)
+        {
+            return await dbContext.QuestionSetCategories.FindAsync(categoryId) is not null;
         }
 
         [HttpGet]
@@ -40,23 +48,29 @@ namespace QuizApi.Controllers
             int limit = 10, 
             string? namePattern = null,
             int? categoryId = null,
-            QuestionSetCreatorFilter? creatorFilter = null)
+            int? creatorId = null,
+            CreatorFilter? creatorFilter = null)
         {
             limit = Math.Min(limit, 100);
 
-            IAsyncEnumerable<QuestionSetDTO> questionSets = dbContext.QuestionSets
-                .AsAsyncEnumerable()
-                .WhereAwait(async qs => await User.CanAccess(qs, dbContext));
+            IQueryable<QuizDTO> questionSetsQuery = dbContext.QuestionSets;
 
             if (!string.IsNullOrEmpty(namePattern))
             {
-                questionSets = questionSets.Where(s => s.Name.Contains(namePattern));
+                questionSetsQuery = questionSetsQuery.Where(s => s.Name.Contains(namePattern));
             }
 
             if (categoryId is not null)
             {
-                questionSets = questionSets.Where(s => s.CategoryId == categoryId);
+                questionSetsQuery = questionSetsQuery.Where(s => s.CategoryId == categoryId);
             }
+
+            if (creatorId is not null)
+            {
+                questionSetsQuery = questionSetsQuery.Where(s => s.CreatorId == creatorId);
+            }
+
+            IEnumerable<QuizDTO> questionSets = questionSetsQuery;
 
             if (creatorFilter is not null)
             {
@@ -67,29 +81,33 @@ namespace QuizApi.Controllers
 
                 int id = User.GetId();
 
-                if (creatorFilter == QuestionSetCreatorFilter.Me)
+                if (creatorFilter == CreatorFilter.Me)
                 {
                     questionSets = questionSets.Where(s => s.CreatorId == id);
                 }
-                else if (creatorFilter == QuestionSetCreatorFilter.Friends)
+                else if (creatorFilter == CreatorFilter.Friends)
                 {
-                    IEnumerable<QuestionSetDTO> friendsQuestionSets = dbContext.GetUserFriendsQuestionSets(id);
+                    IEnumerable<QuizDTO> friendsQuestionSets = dbContext.GetUserFriendsQuestionSets(id);
 
-                    questionSets = questionSets.Intersect(friendsQuestionSets.ToAsyncEnumerable());
+                    questionSets = questionSets.Intersect(friendsQuestionSets);
                 }
                 else throw new NotImplementedException();
             }
 
-            questionSets = questionSets.Skip(limit * pageId).Take(limit);
+            IAsyncEnumerable<QuizDTO> questionSetsAsync = questionSets
+                .ToAsyncEnumerable()
+                .WhereAwait(async qs => await User.CanAccess(qs, dbContext));
 
-            return Ok(questionSets);
+            questionSetsAsync = questionSetsAsync.Skip(limit * pageId).Take(limit);
+
+            return Ok(questionSetsAsync);
         }
 
         [HttpGet("{id:int}")]
         [AllowAnonymous]
         public async Task<IActionResult> Get(int id)
         {
-            if (await Find(id) is not QuestionSetDTO questionSetDTO)
+            if (await Find(id) is not QuizDTO questionSetDTO)
             {
                 return NotFound();
             }
@@ -104,11 +122,21 @@ namespace QuizApi.Controllers
 
         [HttpPost]
         [Authorize]
-        public async Task<IActionResult> Post([Required] QuestionSet questionSet)
+        public async Task<IActionResult> Post([Required] Quiz questionSet)
         {
+            if (await IsNameConflict(questionSet.Name))
+            {
+                return Conflict($"Quiz with name \"{questionSet.Name}\" already exists");
+            }
+
+            if (!await DoesCategoryExist(questionSet.CategoryId))
+            {
+                return NotFound($"No category with id: {questionSet.CategoryId} found");
+            }
+
             int userId = User.GetId();
 
-            QuestionSetDTO questionSetDTO = new()
+            QuizDTO questionSetDTO = new()
             {
                 Name = questionSet.Name,
                 Description = questionSet.Description,
@@ -125,9 +153,9 @@ namespace QuizApi.Controllers
 
         [HttpPatch("{id:int}")]
         [Authorize]
-        public async Task<IActionResult> Patch(int id, [Required] QuestionSet questionSet)
+        public async Task<IActionResult> Patch(int id, [Required] Quiz questionSet)
         {
-            if (await Find(id) is not QuestionSetDTO questionSetDTO)
+            if (await Find(id) is not QuizDTO questionSetDTO)
             {
                 return NotFound();
             }
@@ -135,6 +163,16 @@ namespace QuizApi.Controllers
             if (!User.CanModify(questionSetDTO))
             {
                 return Forbid();
+            }
+
+            if (await IsNameConflict(questionSet.Name))
+            {
+                return Conflict($"Quiz with name \"{questionSet.Name}\" already exists");
+            }
+
+            if (!await DoesCategoryExist(questionSet.CategoryId))
+            {
+                return NotFound($"No category with id: {questionSet.CategoryId} found");
             }
 
             questionSetDTO.Name = questionSet.Name;
@@ -151,7 +189,7 @@ namespace QuizApi.Controllers
         [Authorize]
         public async Task<IActionResult> Delete(int id)
         {
-            if (await Find(id) is not QuestionSetDTO questionSetDTO)
+            if (await Find(id) is not QuizDTO questionSetDTO)
             {
                 return NotFound();
             }
@@ -171,7 +209,7 @@ namespace QuizApi.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> GetQuestions(int id)
         {
-            if (await Find(id) is not QuestionSetDTO questionSetDTO)
+            if (await Find(id) is not QuizDTO questionSetDTO)
             {
                 return NotFound();
             }
@@ -191,7 +229,7 @@ namespace QuizApi.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> GetQuestion(int id, int index)
         {
-            if (await Find(id) is not QuestionSetDTO questionSetDTO)
+            if (await Find(id) is not QuizDTO questionSetDTO)
             {
                 return NotFound();
             }
@@ -218,7 +256,7 @@ namespace QuizApi.Controllers
         [Authorize]
         public async Task<IActionResult> PostQuestion(int id, [Required] Question question)
         {
-            if (await Find(id) is not QuestionSetDTO questionSetDTO)
+            if (await Find(id) is not QuizDTO questionSetDTO)
             {
                 return NotFound();
             }

@@ -1,19 +1,21 @@
 ﻿using Microsoft.AspNetCore.Diagnostics;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.OpenApi.Models;
 
 namespace QuizApi.Controllers
 {
-    [Route("error")]
+    [Route("Errors")]
     [ApiController]
     public class ErrorsController : ControllerBase
     {
-        [HttpGet]
+        [ApiExplorerSettings(IgnoreApi = true)]
         public IActionResult Error()
         {
             Exception? exception = HttpContext.Features.Get<IExceptionHandlerFeature>()?.Error;
 
-            return Problem(title: exception?.Message, statusCode: 400);
+            string? message = exception?.InnerException?.Message ?? exception?.Message;
+
+            return BadRequest(message);
         }
     }
 }

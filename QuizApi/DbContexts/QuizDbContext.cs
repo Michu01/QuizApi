@@ -8,9 +8,9 @@ namespace QuizApi.DbContexts
     {
         public DbSet<QuestionDTO> Questions { get; set; }
 
-        public DbSet<QuestionSetDTO> QuestionSets { get; set; }
+        public DbSet<QuizDTO> QuestionSets { get; set; }
 
-        public DbSet<QuestionSetCategoryDTO> QuestionSetCategories { get; set; }
+        public DbSet<CategoryDTO> QuestionSetCategories { get; set; }
 
         public DbSet<UserDTO> Users { get; set; }
 
@@ -52,7 +52,7 @@ namespace QuizApi.DbContexts
                 user.JoinDate = DateTime.Today;
             }
 
-            foreach (QuestionSetDTO questionSet in added.OfType<QuestionSetDTO>())
+            foreach (QuizDTO questionSet in added.OfType<QuizDTO>())
             {
                 questionSet.CreationDate = DateTime.Today;
             }
@@ -82,7 +82,7 @@ namespace QuizApi.DbContexts
             return await Friendships.FindAsync(userId1, userId2) != null || await Friendships.FindAsync(userId2, userId1) != null;
         }
 
-        public IEnumerable<QuestionSetDTO> GetUserFriendsQuestionSets(int userId)
+        public IEnumerable<QuizDTO> GetUserFriendsQuestionSets(int userId)
         {
             return Friendships
                 .Where(f => f.MeId == userId || f.TheyId == userId)

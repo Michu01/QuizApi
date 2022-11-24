@@ -3,8 +3,8 @@
 namespace QuizApi.Enums
 {
     [JsonConverter(typeof(JsonStringEnumConverter))]
-    public enum QuestionAnswer
+    public enum CreatorFilter
     {
-        A, B, C, D
+        Friends, Me
     }
 }

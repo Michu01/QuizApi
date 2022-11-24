@@ -3,6 +3,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
+using QuizApi.Extensions;
 using QuizApi.Models;
 using QuizApi.Services;
 
@@ -21,7 +22,7 @@ namespace QuizApi.Controllers
 
         [AllowAnonymous]
         [HttpPost("SignIn")]
-        public async Task<IActionResult> SignIn([FromBody][Required] UserAuthData authData)
+        public async Task<IActionResult> SignIn([FromBody][Required] AuthData authData)
         {
             Token token = await authService.SignIn(authData);
 
@@ -30,9 +31,25 @@ namespace QuizApi.Controllers
 
         [AllowAnonymous]
         [HttpPost("SignUp")]
-        public async Task<IActionResult> SignUp([FromBody][Required] UserAuthData authData)
+        public async Task<IActionResult> SignUp([FromBody][Required] AuthData authData)
         {
             Token token = await authService.SignUp(authData);
+
+            return Ok(token);
+        }
+
+        [HttpPost("ChangePassword")]
+        [Authorize]
+        public async Task<IActionResult> ChangePassword(PasswordChange passwordChange)
+        {
+            if (passwordChange.CurrentPassword == passwordChange.NewPassword)
+            {
+                return BadRequest("New password cannot be the same as the old one");
+            }
+
+            int id = User.GetId();
+
+            Token token = await authService.ChangePassword(id, passwordChange);
 
             return Ok(token);
         }

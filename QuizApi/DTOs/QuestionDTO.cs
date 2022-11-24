@@ -36,12 +36,12 @@ namespace QuizApi.DTOs
         [NotNull]
         public string? AnswerD { get; set; }
 
-        public QuestionAnswer CorrectAnswer { get; set; }
+        public Answer CorrectAnswer { get; set; }
 
         public int QuestionSetId { get; set; }
 
         [NotNull]
         [JsonIgnore]
-        public virtual QuestionSetDTO? QuestionSet { get; set; }
+        public virtual QuizDTO? QuestionSet { get; set; }
     }
 }
