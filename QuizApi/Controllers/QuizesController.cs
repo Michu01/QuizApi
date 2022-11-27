@@ -36,6 +36,11 @@ namespace QuizApi.Controllers
             return await dbContext.QuestionSets.AnyAsync(q => q.Name == name);
         }
 
+        private async Task<bool> IsNameConflict(string name, int id)
+        {
+            return await dbContext.QuestionSets.AnyAsync(q => q.Id != id && q.Name == name);
+        }
+
         private async Task<bool> DoesCategoryExist(int categoryId)
         {
             return await dbContext.QuestionSetCategories.FindAsync(categoryId) is not null;
@@ -95,6 +100,7 @@ namespace QuizApi.Controllers
             }
 
             IAsyncEnumerable<QuizDTO> questionSetsAsync = questionSets
+                .ToArray()
                 .ToAsyncEnumerable()
                 .WhereAwait(async qs => await User.CanAccess(qs, dbContext));
 
@@ -165,7 +171,7 @@ namespace QuizApi.Controllers
                 return Forbid();
             }
 
-            if (await IsNameConflict(questionSet.Name))
+            if (await IsNameConflict(questionSet.Name, id))
             {
                 return Conflict($"Quiz with name \"{questionSet.Name}\" already exists");
             }

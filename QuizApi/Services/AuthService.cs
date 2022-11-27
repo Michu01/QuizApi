@@ -1,4 +1,5 @@
-﻿using System.IdentityModel.Tokens.Jwt;
+﻿using System.Drawing.Drawing2D;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 
@@ -98,6 +99,11 @@ namespace QuizApi.Services
 
         public async Task<Token> ChangePassword(int id, PasswordChange passwordChange)
         {
+            if (passwordChange.CurrentPassword == passwordChange.NewPassword)
+            {
+                throw new Exception("New password cannot be the same as the old one");
+            }
+
             UserDTO user = (await dbContext.Users.FindAsync(id))!;
 
             if (passwordHasher.VerifyHashedPassword(user, user.Password, passwordChange.CurrentPassword) != PasswordVerificationResult.Success)
@@ -106,6 +112,29 @@ namespace QuizApi.Services
             }
 
             user.Password = passwordHasher.HashPassword(user, passwordChange.NewPassword);
+
+            await dbContext.SaveChangesAsync();
+
+            Token token = GenerateToken(user);
+
+            return token;
+        }
+
+        public async Task<Token> ChangeUsername(int id, UsernameChange usernameChange)
+        {
+            if (await dbContext.FindUserByName(usernameChange.Name) is not null)
+            {
+                throw new Exception($"User with name: \"{usernameChange.Name}\" already exists");
+            }
+
+            UserDTO user = (await dbContext.Users.FindAsync(id))!;
+
+            if (passwordHasher.VerifyHashedPassword(user, user.Password, usernameChange.Password) != PasswordVerificationResult.Success)
+            {
+                throw new Exception("Invalid password");
+            }
+
+            user.Name = usernameChange.Name;
 
             await dbContext.SaveChangesAsync();
 

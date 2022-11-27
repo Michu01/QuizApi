@@ -38,15 +38,21 @@ namespace QuizApi.Controllers
             return Ok(token);
         }
 
+        [HttpPost("ChangeUsername")]
+        [Authorize]
+        public async Task<IActionResult> ChangeUsername(UsernameChange usernameChange)
+        {
+            int id = User.GetId();
+
+            Token token = await authService.ChangeUsername(id, usernameChange);
+
+            return Ok(token);
+        }
+
         [HttpPost("ChangePassword")]
         [Authorize]
         public async Task<IActionResult> ChangePassword(PasswordChange passwordChange)
         {
-            if (passwordChange.CurrentPassword == passwordChange.NewPassword)
-            {
-                return BadRequest("New password cannot be the same as the old one");
-            }
-
             int id = User.GetId();
 
             Token token = await authService.ChangePassword(id, passwordChange);

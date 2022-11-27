@@ -34,7 +34,7 @@ namespace QuizApi.Controllers
                 usersQuery = usersQuery.Where(u => u.Name.Contains(namePattern));
             }
 
-            IAsyncEnumerable<UserDTO> users = usersQuery.AsAsyncEnumerable();
+            IAsyncEnumerable<UserDTO> users = usersQuery.ToArray().ToAsyncEnumerable();
 
             if (friendsOnly)
             {

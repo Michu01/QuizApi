@@ -37,12 +37,17 @@ namespace QuizApi.Extensions
 
             int userId = claimsPrincipal.GetId();
 
-            return questionSet.Access switch
+            if (userId == questionSet.CreatorId)
             {
-                Access.Private => userId == questionSet.CreatorId,
-                Access.Friends => await dbContext.AreUsersFriends(userId, questionSet.CreatorId),
-                _ => throw new NotImplementedException()
-            };
+                return true;
+            }
+
+            if (questionSet.Access == Access.Friends)
+            {
+                return await dbContext.AreUsersFriends(userId, questionSet.CreatorId);
+            }
+
+            return false;
         }
 
         public static bool CanModify(this ClaimsPrincipal claimsPrincipal, QuizDTO questionSet)
