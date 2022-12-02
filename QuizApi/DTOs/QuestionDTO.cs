@@ -38,10 +38,10 @@ namespace QuizApi.DTOs
 
         public Answer CorrectAnswer { get; set; }
 
-        public int QuestionSetId { get; set; }
+        public int QuizId { get; set; }
 
         [NotNull]
         [JsonIgnore]
-        public virtual QuizDTO? QuestionSet { get; set; }
+        public virtual QuizDTO? Quiz { get; set; }
     }
 }

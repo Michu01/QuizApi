@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using QuizApi.DbContexts;
 using QuizApi.DTOs;
 using QuizApi.Models;
+using QuizApi.Repositories;
 
 namespace QuizApi.Controllers
 {
@@ -13,58 +14,69 @@ namespace QuizApi.Controllers
     [ApiController]
     public class CategoriesController : ControllerBase
     {
-        private readonly QuizDbContext dbContext;
+        private readonly ICategoriesRepository repository;
 
-        public CategoriesController(QuizDbContext dbContext)
+        public CategoriesController(ICategoriesRepository repository)
         {
-            this.dbContext = dbContext;
+            this.repository = repository;
         }
 
         [HttpGet]
         [AllowAnonymous]
-        public IActionResult Get()
+        public ActionResult<IEnumerable<CategoryDTO>> Get()
         {
-            return Ok(dbContext.QuestionSetCategories);
-        }
+            IEnumerable<CategoryDTO> categories = repository.Get();
 
+            return Ok(categories);
+        }
+        
         [HttpGet("{id:int}")]
         [AllowAnonymous]
-        public async Task<IActionResult> Get(int id)
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<CategoryDTO>> Get(int id)
         {
-            if (await dbContext.QuestionSetCategories.FindAsync(id) is not CategoryDTO questionSetCategory)
+            if (await repository.Find(id) is not CategoryDTO category)
             {
                 return NotFound();
             }
 
-            return Ok(questionSetCategory);
+            return Ok(category);
         }
 
         [HttpPost]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Post([Required] Category questionSetCategory)
+        [ProducesResponseType(StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<ActionResult<CategoryDTO>> Post([Required] Category category)
         {
-            CategoryDTO dto = new()
+            CategoryDTO categoryDTO = new()
             {
-                Name = questionSetCategory.Name,
+                Name = category.Name
             };
 
-            dbContext.QuestionSetCategories.Add(dto);
-            await dbContext.SaveChangesAsync();
+            repository.Add(categoryDTO);
+            await repository.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(Post), dto);
+            return CreatedAtAction(nameof(Get), new { id = categoryDTO.Id }, categoryDTO);
         }
 
         [HttpDelete("{id:int}")]
         [Authorize(Roles = "Admin")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> Delete(int id)
         {
-            if (await dbContext.QuestionSetCategories.FindAsync(id) is not CategoryDTO dto)
+            if (await repository.Find(id) is not CategoryDTO category)
             {
                 return NotFound();
             }
 
-            dbContext.QuestionSetCategories.Remove(dto);
-            await dbContext.SaveChangesAsync();
+            repository.Remove(category);
+            await repository.SaveChangesAsync();
 
             return Ok();
         }

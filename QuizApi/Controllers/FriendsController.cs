@@ -1,11 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-using QuizApi.DbContexts;
 using QuizApi.DTOs;
 
 using QuizApi.Extensions;
-using QuizApi.Models;
+using QuizApi.Repositories;
 
 namespace QuizApi.Controllers
 {
@@ -13,43 +12,45 @@ namespace QuizApi.Controllers
     [ApiController]
     public class FriendsController : ControllerBase
     {
-        private readonly QuizDbContext dbContext;
+        private readonly IFriendshipsRepository repository;
 
-        public FriendsController(QuizDbContext dbContext)
+        private readonly IUsersRepository usersRepository;
+
+        public FriendsController(IFriendshipsRepository repository, IUsersRepository usersRepository)
         {
-            this.dbContext = dbContext;
+            this.repository = repository;
+            this.usersRepository = usersRepository;
         }
 
         [HttpGet]
         [Authorize]
-        public IActionResult Get()
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<ActionResult<IEnumerable<UserDTO>>> Get()
         {
             int id = User.GetId();
 
-            IQueryable<User> friends = dbContext.Friendships
-                .Where(f => f.MeId == id || f.TheyId == id)
-                .Select(f => new User(f.MeId == id ? f.TheyId : f.MeId));
+            IEnumerable<UserDTO> friends = await usersRepository.GetFriends(id);
 
             return Ok(friends);
         }
 
-       
-
         [HttpDelete("{id:int}")]
         [Authorize]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> Delete(int id)
         {
             int myId = User.GetId();
 
-            if ((await dbContext.Friendships.FindAsync(id, myId) ?? 
-                await dbContext.Friendships.FindAsync(myId, id)) 
-                is not FriendshipDTO friendship)
+            if ((await repository.Find(myId, id) ?? await repository.Find(id, myId)) is not FriendshipDTO friendship)
             {
                 return NotFound();
             }
 
-            dbContext.Friendships.Remove(friendship);
-            await dbContext.SaveChangesAsync();
+            repository.Remove(friendship);
+            await repository.SaveChangesAsync();
 
             return Ok();
         }

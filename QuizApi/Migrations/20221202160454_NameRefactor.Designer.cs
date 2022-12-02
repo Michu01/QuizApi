@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using QuizApi.DbContexts;
 
@@ -11,9 +12,11 @@ using QuizApi.DbContexts;
 namespace QuizApi.Migrations
 {
     [DbContext(typeof(QuizDbContext))]
-    partial class QuizDbContextModelSnapshot : ModelSnapshot
+    [Migration("20221202160454_NameRefactor")]
+    partial class NameRefactor
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -45,15 +48,15 @@ namespace QuizApi.Migrations
 
             modelBuilder.Entity("QuizApi.DTOs.FriendshipDTO", b =>
                 {
-                    b.Property<int>("FirstUserId")
+                    b.Property<int>("MeId")
                         .HasColumnType("int");
 
-                    b.Property<int>("SecondUserId")
+                    b.Property<int>("TheyId")
                         .HasColumnType("int");
 
-                    b.HasKey("FirstUserId", "SecondUserId");
+                    b.HasKey("MeId", "TheyId");
 
-                    b.HasIndex("SecondUserId");
+                    b.HasIndex("TheyId");
 
                     b.ToTable("Friendships");
                 });
@@ -109,12 +112,12 @@ namespace QuizApi.Migrations
                     b.Property<int>("CorrectAnswer")
                         .HasColumnType("int");
 
-                    b.Property<int>("QuizId")
+                    b.Property<int>("QuestionSetId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("QuizId");
+                    b.HasIndex("QuestionSetId");
 
                     b.ToTable("Questions");
                 });
@@ -195,21 +198,21 @@ namespace QuizApi.Migrations
 
             modelBuilder.Entity("QuizApi.DTOs.FriendshipDTO", b =>
                 {
-                    b.HasOne("QuizApi.DTOs.UserDTO", "FirstUser")
+                    b.HasOne("QuizApi.DTOs.UserDTO", "Me")
                         .WithMany("Friendships")
-                        .HasForeignKey("FirstUserId")
+                        .HasForeignKey("MeId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
-                    b.HasOne("QuizApi.DTOs.UserDTO", "SecondUser")
+                    b.HasOne("QuizApi.DTOs.UserDTO", "They")
                         .WithMany()
-                        .HasForeignKey("SecondUserId")
+                        .HasForeignKey("TheyId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("FirstUser");
+                    b.Navigation("Me");
 
-                    b.Navigation("SecondUser");
+                    b.Navigation("They");
                 });
 
             modelBuilder.Entity("QuizApi.DTOs.FriendshipRequestDTO", b =>
@@ -233,25 +236,25 @@ namespace QuizApi.Migrations
 
             modelBuilder.Entity("QuizApi.DTOs.QuestionDTO", b =>
                 {
-                    b.HasOne("QuizApi.DTOs.QuizDTO", "Quiz")
+                    b.HasOne("QuizApi.DTOs.QuizDTO", "QuestionSet")
                         .WithMany("Questions")
-                        .HasForeignKey("QuizId")
+                        .HasForeignKey("QuestionSetId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Quiz");
+                    b.Navigation("QuestionSet");
                 });
 
             modelBuilder.Entity("QuizApi.DTOs.QuizDTO", b =>
                 {
                     b.HasOne("QuizApi.DTOs.CategoryDTO", "Category")
-                        .WithMany("Quizes")
+                        .WithMany("QuestionSets")
                         .HasForeignKey("CategoryId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("QuizApi.DTOs.UserDTO", "Creator")
-                        .WithMany("Quizes")
+                        .WithMany("QuestionSets")
                         .HasForeignKey("CreatorId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -263,7 +266,7 @@ namespace QuizApi.Migrations
 
             modelBuilder.Entity("QuizApi.DTOs.CategoryDTO", b =>
                 {
-                    b.Navigation("Quizes");
+                    b.Navigation("QuestionSets");
                 });
 
             modelBuilder.Entity("QuizApi.DTOs.QuizDTO", b =>
@@ -277,7 +280,7 @@ namespace QuizApi.Migrations
 
                     b.Navigation("Friendships");
 
-                    b.Navigation("Quizes");
+                    b.Navigation("QuestionSets");
                 });
 #pragma warning restore 612, 618
         }

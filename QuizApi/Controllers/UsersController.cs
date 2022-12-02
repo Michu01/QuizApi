@@ -1,10 +1,9 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
-using QuizApi.DbContexts;
 using QuizApi.DTOs;
 using QuizApi.Extensions;
+using QuizApi.Repositories;
 
 namespace QuizApi.Controllers
 {
@@ -12,63 +11,68 @@ namespace QuizApi.Controllers
     [ApiController]
     public class UsersController : ControllerBase
     {
-        private readonly QuizDbContext dbContext;
+        private const int MaxUserLimit = 100;
 
-        public UsersController(QuizDbContext dbContext)
+        private readonly IUsersRepository repository;
+
+        private readonly IFriendshipsRepository friendshipsRepository;
+
+        private readonly IFriendshipRequestsRepository friendshipRequestsRepository;
+
+        public UsersController(
+            IUsersRepository repository, 
+            IFriendshipsRepository friendshipsRepository, 
+            IFriendshipRequestsRepository friendshipRequestsRepository)
         {
-            this.dbContext = dbContext;
+            this.repository = repository;
+            this.friendshipsRepository = friendshipsRepository;
+            this.friendshipRequestsRepository = friendshipRequestsRepository;
         }
 
         [HttpGet]
         [AllowAnonymous]
-        public IActionResult Get(
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public ActionResult<IAsyncEnumerable<UserDTO>> Get(
            int pageId = 0,
            int limit = 10,
            string? namePattern = null,
            bool friendsOnly = false)
         {
-            IQueryable<UserDTO> usersQuery = dbContext.Users;
+            limit = Math.Min(limit, MaxUserLimit);
 
-            if (!string.IsNullOrEmpty(namePattern))
+            if (friendsOnly && User.Identity is null)
             {
-                usersQuery = usersQuery.Where(u => u.Name.Contains(namePattern));
+                return Unauthorized();
             }
 
-            IAsyncEnumerable<UserDTO> users = usersQuery.ToArray().ToAsyncEnumerable();
+            int? userId = User.TryGetId();
 
-            if (friendsOnly)
-            {
-                if (User.Identity == null || !User.Claims.Any())
-                {
-                    return BadRequest("You must be signed in to view friends");
-                }
-
-                int id = User.GetId();
-
-                users = users.WhereAwait(async u => await dbContext.AreUsersFriends(id, u.Id));
-            }
- 
-            users = users.Skip(pageId * limit).Take(limit);
+            IAsyncEnumerable<UserDTO> users = repository.Get(pageId, limit, namePattern, friendsOnly, userId);
 
             return Ok(users);
         }
 
         [HttpGet("Me")]
         [Authorize]
-        public async Task<IActionResult> Get()
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<ActionResult<UserDTO>> Get()
         {
             int id = User.GetId();
 
-            UserDTO user = (await dbContext.Users.FindAsync(id))!;
+            UserDTO user = (await repository.Find(id))!;
 
             return Ok(user);
         }
 
         [HttpGet("{id:int}")]
         [AllowAnonymous]
-        public async Task<IActionResult> Get(int id)
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<UserDTO>> Get(int id)
         {
-            if (await dbContext.Users.FindAsync(id) is not UserDTO user)
+            if (await repository.Find(id) is not UserDTO user)
             {
                 return NotFound();
             }
@@ -78,20 +82,28 @@ namespace QuizApi.Controllers
 
         [HttpGet("{id:int}/IsFriend")]
         [Authorize]
-        public async Task<IActionResult> IsFriend(int id)
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<ActionResult<bool>> IsFriend(int id)
         {
             int myId = User.GetId();
 
-            return Ok(await dbContext.AreUsersFriends(myId, id));
+            bool isFriend = await friendshipsRepository.AreUsersFriends(myId, id);
+
+            return Ok(isFriend);
         }
 
         [HttpGet("{id:int}/IsInvited")]
         [Authorize]
-        public async Task<IActionResult> IsInvited(int id)
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<ActionResult<bool>> IsInvited(int id)
         {
             int myId = User.GetId();
 
-            return Ok(await dbContext.FriendshipRequests.FindAsync(myId, id) is not null);
+            bool isInvited = await friendshipRequestsRepository.IsInvited(myId, id);
+
+            return Ok(isInvited);
         }
     }
 }

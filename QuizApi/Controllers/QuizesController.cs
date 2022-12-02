@@ -2,13 +2,12 @@
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
-using QuizApi.DbContexts;
 using QuizApi.DTOs;
 using QuizApi.Enums;
 using QuizApi.Extensions;
 using QuizApi.Models;
+using QuizApi.Repositories;
 
 namespace QuizApi.Controllers
 {
@@ -16,39 +15,29 @@ namespace QuizApi.Controllers
     [ApiController]
     public class QuizesController : ControllerBase
     {
-        private readonly QuizDbContext dbContext;
+        private const int MaxQuizLimit = 100;
 
-        private readonly ILogger<QuizesController> logger;
+        private readonly IQuizesRepository repository;
 
-        public QuizesController(QuizDbContext dbContext, ILogger<QuizesController> logger)
+        private readonly Services.IAuthorizationService authorizationService;
+
+        private readonly IQuestionsRepository questionsRepository;
+
+        public QuizesController(
+            IQuizesRepository repository, 
+            Services.IAuthorizationService authorizationService, 
+            IQuestionsRepository questionsRepository)
         {
-            this.dbContext = dbContext;
-            this.logger = logger;
-        }
-
-        private async Task<QuizDTO?> Find(int id)
-        {
-            return await dbContext.QuestionSets.FindAsync(id);
-        }
-
-        private async Task<bool> IsNameConflict(string name)
-        {
-            return await dbContext.QuestionSets.AnyAsync(q => q.Name == name);
-        }
-
-        private async Task<bool> IsNameConflict(string name, int id)
-        {
-            return await dbContext.QuestionSets.AnyAsync(q => q.Id != id && q.Name == name);
-        }
-
-        private async Task<bool> DoesCategoryExist(int categoryId)
-        {
-            return await dbContext.QuestionSetCategories.FindAsync(categoryId) is not null;
+            this.repository = repository;
+            this.authorizationService = authorizationService;
+            this.questionsRepository = questionsRepository;
         }
 
         [HttpGet]
         [AllowAnonymous]
-        public IActionResult Get(
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public ActionResult<IAsyncEnumerable<QuizDTO>> Get(
             int pageId = 0, 
             int limit = 10, 
             string? namePattern = null,
@@ -56,197 +45,165 @@ namespace QuizApi.Controllers
             int? creatorId = null,
             CreatorFilter? creatorFilter = null)
         {
-            limit = Math.Min(limit, 100);
-
-            IQueryable<QuizDTO> questionSetsQuery = dbContext.QuestionSets;
-
-            if (!string.IsNullOrEmpty(namePattern))
+            if (creatorFilter is not null && User.Identity is null)
             {
-                questionSetsQuery = questionSetsQuery.Where(s => s.Name.Contains(namePattern));
+                return Unauthorized();
             }
 
-            if (categoryId is not null)
-            {
-                questionSetsQuery = questionSetsQuery.Where(s => s.CategoryId == categoryId);
-            }
+            limit = Math.Min(limit, MaxQuizLimit);
 
-            if (creatorId is not null)
-            {
-                questionSetsQuery = questionSetsQuery.Where(s => s.CreatorId == creatorId);
-            }
+            IAsyncEnumerable<QuizDTO> quizes = repository.Get(pageId, limit, namePattern, categoryId, creatorId, creatorFilter, User);
 
-            IEnumerable<QuizDTO> questionSets = questionSetsQuery;
-
-            if (creatorFilter is not null)
-            {
-                if (User.Identity is null)
-                {
-                    return BadRequest("User not signed in");
-                }
-
-                int id = User.GetId();
-
-                if (creatorFilter == CreatorFilter.Me)
-                {
-                    questionSets = questionSets.Where(s => s.CreatorId == id);
-                }
-                else if (creatorFilter == CreatorFilter.Friends)
-                {
-                    IEnumerable<QuizDTO> friendsQuestionSets = dbContext.GetUserFriendsQuestionSets(id);
-
-                    questionSets = questionSets.Intersect(friendsQuestionSets);
-                }
-                else throw new NotImplementedException();
-            }
-
-            IAsyncEnumerable<QuizDTO> questionSetsAsync = questionSets
-                .ToArray()
-                .ToAsyncEnumerable()
-                .WhereAwait(async qs => await User.CanAccess(qs, dbContext));
-
-            questionSetsAsync = questionSetsAsync.Skip(limit * pageId).Take(limit);
-
-            return Ok(questionSetsAsync);
+            return Ok(quizes);
         }
 
         [HttpGet("{id:int}")]
         [AllowAnonymous]
-        public async Task<IActionResult> Get(int id)
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<QuizDTO>> Get(int id)
         {
-            if (await Find(id) is not QuizDTO questionSetDTO)
+            if (await repository.Find(id) is not QuizDTO quiz)
             {
                 return NotFound();
             }
 
-            if (await User.CanAccess(questionSetDTO, dbContext))
+            if (!await authorizationService.CanUserAccessQuiz(User, quiz))
             {
-                return Ok(questionSetDTO);
+                return Forbid();
             }
 
-            return Forbid();
+            return Ok(quiz);
         }
 
         [HttpPost]
         [Authorize]
-        public async Task<IActionResult> Post([Required] Quiz questionSet)
+        [ProducesResponseType(StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        public async Task<ActionResult<QuizDTO>> Post([Required] Quiz quiz)
         {
-            if (await IsNameConflict(questionSet.Name))
+            if (await repository.IsNameConflict(quiz.Name))
             {
-                return Conflict($"Quiz with name \"{questionSet.Name}\" already exists");
-            }
-
-            if (!await DoesCategoryExist(questionSet.CategoryId))
-            {
-                return NotFound($"No category with id: {questionSet.CategoryId} found");
+                return Conflict($"Quiz with name \"{quiz.Name}\" already exists");
             }
 
             int userId = User.GetId();
 
-            QuizDTO questionSetDTO = new()
+            QuizDTO quizDTO = new()
             {
-                Name = questionSet.Name,
-                Description = questionSet.Description,
-                Access = questionSet.Access,
-                CategoryId = questionSet.CategoryId,
+                Name = quiz.Name,
+                Description = quiz.Description,
+                Access = quiz.Access,
+                CategoryId = quiz.CategoryId,
                 CreatorId = userId
             };
 
-            await dbContext.QuestionSets.AddAsync(questionSetDTO);
-            await dbContext.SaveChangesAsync();
+            repository.Add(quizDTO);
+            await repository.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(Post), questionSetDTO);
+            return CreatedAtAction(nameof(Get), new { id = quizDTO.Id }, quizDTO);
         }
 
         [HttpPatch("{id:int}")]
         [Authorize]
-        public async Task<IActionResult> Patch(int id, [Required] Quiz questionSet)
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        public async Task<ActionResult<QuizDTO>> Patch(int id, [Required] Quiz quiz)
         {
-            if (await Find(id) is not QuizDTO questionSetDTO)
+            if (await repository.Find(id) is not QuizDTO quizDTO)
             {
                 return NotFound();
             }
 
-            if (!User.CanModify(questionSetDTO))
+            if (!authorizationService.CanUserModifyQuiz(User, quizDTO))
             {
                 return Forbid();
             }
 
-            if (await IsNameConflict(questionSet.Name, id))
+            if (quiz.Name != quizDTO.Name && await repository.IsNameConflict(quiz.Name))
             {
-                return Conflict($"Quiz with name \"{questionSet.Name}\" already exists");
+                return Conflict($"Quiz with name \"{quiz.Name}\" already exists");
             }
 
-            if (!await DoesCategoryExist(questionSet.CategoryId))
-            {
-                return NotFound($"No category with id: {questionSet.CategoryId} found");
-            }
-
-            questionSetDTO.Name = questionSet.Name;
-            questionSetDTO.Description = questionSet.Description;
-            questionSetDTO.Access = questionSet.Access;
-            questionSetDTO.CategoryId = questionSet.CategoryId;
+            quizDTO.Name = quiz.Name;
+            quizDTO.Description = quiz.Description;
+            quizDTO.Access = quiz.Access;
+            quizDTO.CategoryId = quiz.CategoryId;
             
-            await dbContext.SaveChangesAsync();
+            await repository.SaveChangesAsync();
 
-            return Ok(questionSetDTO);
+            return Ok(quizDTO);
         }
 
         [HttpDelete("{id:int}")]
         [Authorize]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> Delete(int id)
         {
-            if (await Find(id) is not QuizDTO questionSetDTO)
+            if (await repository.Find(id) is not QuizDTO quizDTO)
             {
                 return NotFound();
             }
 
-            if (!User.CanModify(questionSetDTO))
+            if (!authorizationService.CanUserModifyQuiz(User, quizDTO))
             {
                 return Forbid();
             }
 
-            dbContext.Remove(questionSetDTO);
-            await dbContext.SaveChangesAsync();
+            repository.Remove(quizDTO);
+            await repository.SaveChangesAsync();
 
             return Ok();
         }
 
-        [HttpGet("{id:int}/Questions")]
+        [HttpGet("{quizId:int}/Questions")]
         [AllowAnonymous]
-        public async Task<IActionResult> GetQuestions(int id)
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<IEnumerable<QuestionDTO>>> GetQuestions(int quizId)
         {
-            if (await Find(id) is not QuizDTO questionSetDTO)
+            if (await repository.Find(quizId) is not QuizDTO quizDTO)
             {
                 return NotFound();
             }
 
-            if (!await User.CanAccess(questionSetDTO, dbContext))
+            if (!await authorizationService.CanUserAccessQuiz(User, quizDTO))
             {
                 return Forbid();
             }
 
-            IQueryable<QuestionDTO> questions = dbContext.Questions
-                .Where(q => q.QuestionSetId == id);
+            IEnumerable<QuestionDTO> questions = questionsRepository.FindByQuizId(quizId);
 
             return Ok(questions);
         }
 
-        [HttpGet("{id:int}/Questions/{index}")]
+        [HttpGet("{quizId:int}/Questions/{index}")]
         [AllowAnonymous]
-        public async Task<IActionResult> GetQuestion(int id, int index)
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<QuestionDTO>> GetQuestion(int quizId, int index)
         {
-            if (await Find(id) is not QuizDTO questionSetDTO)
+            if (await repository.Find(quizId) is not QuizDTO quizDTO)
             {
                 return NotFound();
             }
 
-            if (!await User.CanAccess(questionSetDTO, dbContext))
+            if (!await authorizationService.CanUserAccessQuiz(User, quizDTO))
             {
                 return Forbid();
             }
 
-            IQueryable<QuestionDTO> questions = dbContext.Questions
-                .Where(q => q.QuestionSetId == id);
+            IEnumerable<QuestionDTO> questions = questionsRepository.FindByQuizId(quizId);
 
             if (index < 0 || index >= questions.Count())
             {
@@ -258,16 +215,20 @@ namespace QuizApi.Controllers
             return Ok(question);
         }
 
-        [HttpPost("{id:int}/Questions")]
+        [HttpPost("{quizId:int}/Questions")]
         [Authorize]
-        public async Task<IActionResult> PostQuestion(int id, [Required] Question question)
+        [ProducesResponseType(StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<QuestionDTO>> PostQuestion(int quizId, [Required] Question question)
         {
-            if (await Find(id) is not QuizDTO questionSetDTO)
+            if (await repository.Find(quizId) is not QuizDTO quizDTO)
             {
                 return NotFound();
             }
 
-            if (!User.CanModify(questionSetDTO))
+            if (!await authorizationService.CanUserAccessQuiz(User, quizDTO))
             {
                 return Forbid();
             }
@@ -280,13 +241,13 @@ namespace QuizApi.Controllers
                 AnswerD = question.AnswerD,
                 CorrectAnswer = question.CorrectAnswer,
                 Contents = question.Contents,
-                QuestionSetId = id
+                QuizId = quizId
             };
 
-            dbContext.Questions.Add(questionDTO);
-            await dbContext.SaveChangesAsync();
+            questionsRepository.Add(questionDTO);
+            await questionsRepository.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetQuestion), questionDTO);
+            return CreatedAtAction(nameof(QuestionsController.Get), new { id = questionDTO.Id }, questionDTO);
         }
     }
 }

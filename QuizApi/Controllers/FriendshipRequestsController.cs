@@ -7,6 +7,7 @@ using QuizApi.DbContexts;
 using QuizApi.DTOs;
 
 using QuizApi.Extensions;
+using QuizApi.Repositories;
 
 namespace QuizApi.Controllers
 {
@@ -14,66 +15,91 @@ namespace QuizApi.Controllers
     [ApiController]
     public class FriendshipRequestsController : ControllerBase
     {
-        private readonly QuizDbContext dbContext;
+        private readonly IFriendshipRequestsRepository repository;
 
-        public FriendshipRequestsController(QuizDbContext dbContext)
+        private readonly IFriendshipsRepository friendshipsRepository;
+
+        private readonly IUsersRepository usersRepository;
+
+        public FriendshipRequestsController(
+            IFriendshipRequestsRepository repository, 
+            IFriendshipsRepository friendshipsRepository,
+            IUsersRepository usersRepository)
         {
-            this.dbContext = dbContext;
+            this.repository = repository;
+            this.friendshipsRepository = friendshipsRepository;
+            this.usersRepository = usersRepository;
+        }
+
+        [HttpGet("{receiverId:int}")]
+        [Authorize]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<FriendshipRequestDTO>> Get(int receiverId)
+        {
+            int id = User.GetId();
+
+            if (await repository.Find(id, receiverId) is not FriendshipRequestDTO friendshipRequest)
+            {
+                return NotFound();
+            }
+
+            return Ok(friendshipRequest);
         }
 
         [HttpGet]
         [Authorize]
-        public IActionResult Get()
+        public ActionResult<IEnumerable<FriendshipRequestDTO>> Get()
         {
             int id = User.GetId();
 
-            IQueryable<FriendshipRequestDTO> requests = dbContext.FriendshipRequests
-                .Where(r => r.ReceiverId == id || r.SenderId == id);
+            IEnumerable<FriendshipRequestDTO> requests = repository.Get(id);
 
             return Ok(requests);
         }
 
         [HttpGet("Received")]
         [Authorize]
-        public IActionResult GetReceived()
+        public ActionResult<IEnumerable<FriendshipRequestDTO>> GetReceived()
         {
             int id = User.GetId();
 
-            IQueryable<FriendshipRequestDTO> received = dbContext.FriendshipRequests
-                .Where(r => r.ReceiverId == id);
+            IEnumerable<FriendshipRequestDTO> received = repository.GetReceived(id);
 
             return Ok(received);
         }
 
         [HttpGet("Sent")]
         [Authorize]
-        public IActionResult GetSent()
+        public ActionResult<IEnumerable<FriendshipRequestDTO>> GetSent()
         {
             int id = User.GetId();
 
-            IQueryable<FriendshipRequestDTO> sent = dbContext.FriendshipRequests
-                .Where(r => r.SenderId == id);
+            IEnumerable<FriendshipRequestDTO> sent = repository.GetSent(id);
 
             return Ok(sent);
         }
 
-        [HttpPost("Send/{userId:int}")]
+        [HttpPost("Send/{receiverId:int}")]
         [Authorize]
-        public async Task<IActionResult> Send(int userId)
+        [ProducesResponseType(StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<FriendshipRequestDTO>> Send(int receiverId)
         {
             int id = User.GetId();
 
-            if (id == userId)
+            if (id == receiverId)
             {
                 return BadRequest("You cannot be friends with yourself! Find some real friends...");
             }
 
-            if (await dbContext.Users.FindAsync(userId) is not UserDTO receiver)
+            if (await usersRepository.Find(receiverId) is not UserDTO receiver)
             {
                 return NotFound();
             }
 
-            if (await dbContext.AreUsersFriends(id, userId))
+            if (await friendshipsRepository.AreUsersFriends(id, receiverId))
             {
                 return BadRequest("Already friends");
             }
@@ -81,69 +107,75 @@ namespace QuizApi.Controllers
             FriendshipRequestDTO friendshipRequest = new()
             {
                 SenderId = id,
-                ReceiverId = userId
+                ReceiverId = receiverId
             };
 
-            dbContext.FriendshipRequests.Add(friendshipRequest);
-            await dbContext.SaveChangesAsync();
+            repository.Add(friendshipRequest);
+            await repository.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(Send), friendshipRequest);
+            return CreatedAtAction(nameof(Get), new { receiverId }, friendshipRequest);
         }
 
         [HttpDelete("Cancel/{userId:int}")]
         [Authorize]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> Cancel(int userId)
         {
             int id = User.GetId();
 
-            if (await dbContext.FriendshipRequests.FindAsync(id, userId) is not FriendshipRequestDTO friendshipRequest)
+            if (await repository.Find(id, userId) is not FriendshipRequestDTO friendshipRequest)
             {
                 return NotFound();
             }
 
-            dbContext.FriendshipRequests.Remove(friendshipRequest);
-            await dbContext.SaveChangesAsync();
+            repository.Remove(friendshipRequest);
+            await repository.SaveChangesAsync();
 
             return Ok();
         }
 
         [HttpPost("Accept/{senderId:int}")]
         [Authorize]
-        public async Task<IActionResult> Accept(int senderId)
+        [ProducesResponseType(StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<FriendshipDTO>> Accept(int senderId)
         {
             int myId = User.GetId();
 
-            if (await dbContext.FriendshipRequests.FindAsync(senderId, myId) is not FriendshipRequestDTO friendshipRequest)
+            if (await repository.Find(senderId, myId) is not FriendshipRequestDTO friendshipRequest)
             {
                 return NotFound();
             }
 
             FriendshipDTO friendship = new()
             {
-                MeId = myId,
-                TheyId = senderId
+                FirstUserId = myId,
+                SecondUserId = senderId
             };
 
-            dbContext.FriendshipRequests.Remove(friendshipRequest);
-            dbContext.Friendships.Add(friendship);
-            await dbContext.SaveChangesAsync();
+            repository.Remove(friendshipRequest);
+            friendshipsRepository.Add(friendship);
+            await repository.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(Accept), friendship);
+            return CreatedAtAction(nameof(FriendsController.Get), new { id = senderId }, friendship);
         }
 
         [HttpDelete("Decline/{senderId:int}")]
         [Authorize]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> Decline(int senderId)
         {
             int myId = User.GetId();
 
-            if (await dbContext.FriendshipRequests.FindAsync(senderId, myId) is not FriendshipRequestDTO friendshipRequest)
+            if (await repository.Find(senderId, myId) is not FriendshipRequestDTO friendshipRequest)
             {
                 return NotFound();
             }
 
-            dbContext.FriendshipRequests.Remove(friendshipRequest);
-            await dbContext.SaveChangesAsync();
+            repository.Remove(friendshipRequest);
+            await repository.SaveChangesAsync();
 
             return Ok();
         }

@@ -1,8 +1,10 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
+
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 using QuizApi.Extensions;
+using QuizApi.Services;
 
 namespace QuizApi.Controllers
 {
@@ -10,42 +12,44 @@ namespace QuizApi.Controllers
     [ApiController]
     public class AvatarsController : ControllerBase
     {
-        private readonly IWebHostEnvironment hostEnvironment;
+        private readonly IAvatarService avatarService;
 
-        private readonly ISet<string> allowedExtensions = new HashSet<string>()
+        public AvatarsController(IAvatarService avatarService)
         {
-            ".jpg", ".png", ".gif", ".jpeg"
-        };
-
-        public AvatarsController(IWebHostEnvironment hostEnvironment)
-        {
-            this.hostEnvironment = hostEnvironment;
+            this.avatarService = avatarService;
         }
-
-        private string AvatarsPath => Path.Combine(hostEnvironment.WebRootPath, "images", "avatars");
-
-        private string[] GetMatches(int id) => Directory.GetFiles(AvatarsPath, $"{id}.*");
 
         [HttpGet("Path")]
         [Authorize]
-        public IActionResult GetPath()
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public ActionResult<string> GetPath()
         {
             int id = User.GetId();
 
-            return GetPath(id);
-        }
+            string? result = avatarService.GetPath(id);
 
-        [HttpGet("{id:int}/Path")]
-        public IActionResult GetPath(int id)
-        {
-            string[] matches = GetMatches(id);
-
-            if (matches.Length == 0)
+            if (result is null)
             {
                 return NotFound();
             }
 
-            string result = Path.GetRelativePath(hostEnvironment.WebRootPath, matches[0]);
+            return Ok(result);
+        }
+
+        [HttpGet("{id:int}/Path")]
+        [AllowAnonymous]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public ActionResult<string> GetPath(int id)
+        {
+            string? result = avatarService.GetPath(id);
+
+            if (result is null)
+            {
+                return NotFound();
+            }
 
             return Ok(result);
         }
@@ -53,27 +57,13 @@ namespace QuizApi.Controllers
         [HttpPost("Change")]
         [Authorize]
         [RequestSizeLimit(2 << 20)]
+        [ProducesResponseType(StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> Change([Required] IFormFile file)
         {
-            string? extension = Path.GetExtension(file.FileName);
-
-            if (!allowedExtensions.Contains(extension))
-            {
-                return BadRequest($"Invalid extension. Accepted extensions are: {string.Join(',', allowedExtensions)}");
-            }
-
             int id = User.GetId();
 
-            foreach (string match in GetMatches(id))
-            {
-                System.IO.File.Delete(match);
-            }
-
-            string path = Path.Combine(AvatarsPath, $"{User.GetId()}{extension}");
-
-            using FileStream fileStream = new(path, FileMode.Create);
-
-            await file.CopyToAsync(fileStream);
+            string path = await avatarService.Change(file, id);
 
             return Created(path, null);
         }

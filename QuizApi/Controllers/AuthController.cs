@@ -13,49 +13,53 @@ namespace QuizApi.Controllers
     [ApiController]
     public class AuthController : ControllerBase
     {
-        private readonly IAuthService authService;
+        private readonly IAuthenticationService authenticationService;
 
-        public AuthController(IAuthService authService)
+        public AuthController(IAuthenticationService authenticationService)
         {
-            this.authService = authService;
+            this.authenticationService = authenticationService;
         }
 
-        [AllowAnonymous]
         [HttpPost("SignIn")]
-        public async Task<IActionResult> SignIn([FromBody][Required] AuthData authData)
+        [AllowAnonymous]
+        public async Task<ActionResult<Token>> SignIn([Required] AuthData authData)
         {
-            Token token = await authService.SignIn(authData);
+            Token token = await authenticationService.SignIn(authData);
 
             return Ok(token);
         }
 
-        [AllowAnonymous]
         [HttpPost("SignUp")]
-        public async Task<IActionResult> SignUp([FromBody][Required] AuthData authData)
+        [AllowAnonymous]
+        public async Task<ActionResult<Token>> SignUp([Required] AuthData authData)
         {
-            Token token = await authService.SignUp(authData);
+            Token token = await authenticationService.SignUp(authData);
 
             return Ok(token);
         }
 
         [HttpPost("ChangeUsername")]
         [Authorize]
-        public async Task<IActionResult> ChangeUsername(UsernameChange usernameChange)
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<ActionResult<Token>> ChangeUsername([Required] UsernameChange usernameChange)
         {
             int id = User.GetId();
 
-            Token token = await authService.ChangeUsername(id, usernameChange);
+            Token token = await authenticationService.ChangeUsername(id, usernameChange);
 
             return Ok(token);
         }
 
         [HttpPost("ChangePassword")]
         [Authorize]
-        public async Task<IActionResult> ChangePassword(PasswordChange passwordChange)
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<ActionResult<Token>> ChangePassword([Required] PasswordChange passwordChange)
         {
             int id = User.GetId();
 
-            Token token = await authService.ChangePassword(id, passwordChange);
+            Token token = await authenticationService.ChangePassword(id, passwordChange);
 
             return Ok(token);
         }

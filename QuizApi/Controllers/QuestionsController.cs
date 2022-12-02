@@ -3,12 +3,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-using QuizApi.DbContexts;
 using QuizApi.DTOs;
 
-using QuizApi.Extensions;
-
 using QuizApi.Models;
+using QuizApi.Repositories;
 
 namespace QuizApi.Controllers
 {
@@ -16,28 +14,37 @@ namespace QuizApi.Controllers
     [ApiController]
     public class QuestionsController : ControllerBase
     {
-        private readonly QuizDbContext dbContext;
+        private readonly IQuestionsRepository repository;
 
-        public QuestionsController(QuizDbContext dbContext)
-        {
-            this.dbContext = dbContext;
-        }
+        private readonly Services.IAuthorizationService authorizationService;
 
-        private async Task<QuestionDTO?> Find(int id)
+        private readonly IQuizesRepository quizesRepository;
+
+        public QuestionsController(
+            IQuestionsRepository repository,
+            Services.IAuthorizationService authorizationService, 
+            IQuizesRepository quizesRepository)
         {
-            return await dbContext.Questions.FindAsync(id);
+            this.repository = repository;
+            this.authorizationService = authorizationService;
+            this.quizesRepository = quizesRepository;
         }
 
         [HttpGet("{id:int}")]
         [AllowAnonymous]
-        public async Task<IActionResult> Get(int id)
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<QuestionDTO>> Get(int id)
         {
-            if (await Find(id) is not QuestionDTO questionDTO)
+            if (await repository.Find(id) is not QuestionDTO questionDTO)
             {
                 return NotFound();
             }
 
-            if (!await User.CanAccess(questionDTO.QuestionSet, dbContext))
+            QuizDTO quiz = (await quizesRepository.Find(id))!;
+
+            if (!await authorizationService.CanUserAccessQuiz(User, quiz))
             {
                 return Forbid();
             }
@@ -47,14 +54,20 @@ namespace QuizApi.Controllers
 
         [HttpPatch("{id:int}")]
         [Authorize]
-        public async Task<IActionResult> Patch(int id, [Required] Question question)
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<QuestionDTO>> Patch(int id, [Required] Question question)
         {
-            if (await Find(id) is not QuestionDTO questionDTO)
+            if (await repository.Find(id) is not QuestionDTO questionDTO)
             {
                 return NotFound();
             }
 
-            if (!User.CanModify(questionDTO.QuestionSet))
+            QuizDTO quiz = (await quizesRepository.Find(id))!;
+
+            if (!authorizationService.CanUserModifyQuiz(User, quiz))
             {
                 return Forbid();
             }
@@ -66,27 +79,33 @@ namespace QuizApi.Controllers
             questionDTO.AnswerD = question.AnswerD;
             questionDTO.CorrectAnswer = question.CorrectAnswer;
 
-            await dbContext.SaveChangesAsync();
+            await repository.SaveChangesAsync();
 
             return Ok(questionDTO);
         }
 
         [HttpDelete("{id:int}")]
         [Authorize]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> Delete(int id)
         {
-            if (await Find(id) is not QuestionDTO questionDTO)
+            if (await repository.Find(id) is not QuestionDTO questionDTO)
             {
                 return NotFound();
             }
 
-            if (!User.CanModify(questionDTO.QuestionSet))
+            QuizDTO quiz = (await quizesRepository.Find(id))!;
+
+            if (!authorizationService.CanUserModifyQuiz(User, quiz))
             {
                 return Forbid();
             }
 
-            dbContext.Questions.Remove(questionDTO);
-            await dbContext.SaveChangesAsync();
+            repository.Remove(questionDTO);
+            await repository.SaveChangesAsync();
 
             return Ok();
         }

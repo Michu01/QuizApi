@@ -35,7 +35,7 @@ namespace QuizApi.DTOs
         public virtual ICollection<FriendshipDTO> Friendships { get; set; } = new List<FriendshipDTO>();
 
         [JsonIgnore]
-        public virtual ICollection<QuizDTO> QuestionSets { get; set; } = new List<QuizDTO>();
+        public virtual ICollection<QuizDTO> Quizes { get; set; } = new List<QuizDTO>();
 
         [JsonIgnore]
         public virtual ICollection<FriendshipRequestDTO> FriendshipRequests { get; set; } = new List<FriendshipRequestDTO>();

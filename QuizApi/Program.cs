@@ -8,6 +8,7 @@ using Microsoft.OpenApi.Models;
 
 using QuizApi.DbContexts;
 using QuizApi.DTOs;
+using QuizApi.Repositories;
 using QuizApi.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -72,9 +73,19 @@ builder.Services.AddAuthorization();
 builder.Services.AddDbContext<QuizDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
 
-builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
+builder.Services.AddScoped<IAuthorizationService, AuthorizationService>();
+builder.Services.AddSingleton<IAvatarService, AvatarService>();
+builder.Services.AddSingleton<ITokenGenerator, TokenGenerator>();
 
 builder.Services.AddSingleton<IPasswordHasher<UserDTO>, PasswordHasher<UserDTO>>();
+
+builder.Services.AddScoped<ICategoriesRepository, CategoriesRepository>();
+builder.Services.AddScoped<IFriendshipRequestsRepository, FriendshipRequestsRepository>();
+builder.Services.AddScoped<IFriendshipsRepository, FriendshipsRepository>();
+builder.Services.AddScoped<IQuestionsRepository, QuestionsRepository>();
+builder.Services.AddScoped<IQuizesRepository, QuizesRepository>();
+builder.Services.AddScoped<IUsersRepository, UsersRepository>();
 
 var app = builder.Build();
 

@@ -8,9 +8,9 @@ namespace QuizApi.DbContexts
     {
         public DbSet<QuestionDTO> Questions { get; set; }
 
-        public DbSet<QuizDTO> QuestionSets { get; set; }
+        public DbSet<QuizDTO> Quizes { get; set; }
 
-        public DbSet<CategoryDTO> QuestionSetCategories { get; set; }
+        public DbSet<CategoryDTO> Categories { get; set; }
 
         public DbSet<UserDTO> Users { get; set; }
 
@@ -24,8 +24,8 @@ namespace QuizApi.DbContexts
         {
             modelBuilder.Entity<UserDTO>()
                 .HasMany(u => u.Friendships)
-                .WithOne(f => f.Me)
-                .HasForeignKey(f => f.MeId)
+                .WithOne(f => f.FirstUser)
+                .HasForeignKey(f => f.FirstUserId)
                 .OnDelete(DeleteBehavior.NoAction);
 
             modelBuilder.Entity<UserDTO>()
@@ -34,7 +34,7 @@ namespace QuizApi.DbContexts
                 .HasForeignKey(f => f.SenderId)
                 .OnDelete(DeleteBehavior.NoAction);
 
-            modelBuilder.Entity<FriendshipDTO>().HasKey(f => new { f.MeId, f.TheyId });
+            modelBuilder.Entity<FriendshipDTO>().HasKey(f => new { f.FirstUserId, f.SecondUserId });
 
             modelBuilder.Entity<FriendshipRequestDTO>().HasKey(f => new { f.SenderId, f.ReceiverId });
 
@@ -70,23 +70,6 @@ namespace QuizApi.DbContexts
             OnSaveChanges();
 
             return base.SaveChangesAsync(cancellationToken);
-        }
-
-        public async Task<UserDTO?> FindUserByName(string name)
-        {
-            return await Users.Where(user => user.Name! == name).SingleOrDefaultAsync();
-        }
-
-        public async Task<bool> AreUsersFriends(int userId1, int userId2)
-        {
-            return await Friendships.FindAsync(userId1, userId2) != null || await Friendships.FindAsync(userId2, userId1) != null;
-        }
-
-        public IEnumerable<QuizDTO> GetUserFriendsQuestionSets(int userId)
-        {
-            return Friendships
-                .Where(f => f.MeId == userId || f.TheyId == userId)
-                .Join(QuestionSets, f => f.MeId == userId ? f.TheyId : f.MeId, qs => qs.CreatorId, (_, qs) => qs);
         }
     }
 }
