@@ -47,7 +47,7 @@ namespace QuizApi.Repositories
 
             if (!string.IsNullOrEmpty(namePattern))
             {
-                quizesQuery = quizesQuery.Where(s => s.Name.Contains(namePattern));
+                quizesQuery = quizesQuery.Where(s => s.Name.Contains(namePattern, StringComparison.OrdinalIgnoreCase));
             }
 
             if (categoryId is not null)

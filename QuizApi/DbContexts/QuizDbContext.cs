@@ -6,17 +6,19 @@ namespace QuizApi.DbContexts
 {
     public class QuizDbContext : DbContext
     {
-        public DbSet<QuestionDTO> Questions { get; set; }
+        public virtual DbSet<QuestionDTO> Questions { get; set; }
 
-        public DbSet<QuizDTO> Quizes { get; set; }
+        public virtual DbSet<QuizDTO> Quizes { get; set; }
 
-        public DbSet<CategoryDTO> Categories { get; set; }
+        public virtual DbSet<CategoryDTO> Categories { get; set; }
 
-        public DbSet<UserDTO> Users { get; set; }
+        public virtual DbSet<UserDTO> Users { get; set; }
 
-        public DbSet<FriendshipDTO> Friendships { get; set; }
+        public virtual DbSet<FriendshipDTO> Friendships { get; set; }
 
-        public DbSet<FriendshipRequestDTO> FriendshipRequests { get; set; }
+        public virtual DbSet<FriendshipRequestDTO> FriendshipRequests { get; set; }
+
+        public QuizDbContext() { }
 
         public QuizDbContext(DbContextOptions<QuizDbContext> options) : base(options) { }
 

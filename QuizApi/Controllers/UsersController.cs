@@ -41,12 +41,12 @@ namespace QuizApi.Controllers
         {
             limit = Math.Min(limit, MaxUserLimit);
 
-            if (friendsOnly && User.Identity is null)
+            int? userId = User.TryGetId();
+
+            if (friendsOnly && userId is null)
             {
                 return Unauthorized();
             }
-
-            int? userId = User.TryGetId();
 
             IAsyncEnumerable<UserDTO> users = repository.Get(pageId, limit, namePattern, friendsOnly, userId);
 
